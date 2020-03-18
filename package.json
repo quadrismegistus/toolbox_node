@@ -1,0 +1,14 @@
+{
+  "name": "toolbox_node",
+  "version": "0.0.1",
+  "description": "Keydata Project Toolbox",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "@quadrismegistus",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
