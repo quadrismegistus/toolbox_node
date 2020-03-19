@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+
+
+
+<center>
+<input id="analyze_word" type="textbox" name="word" value="{{WORD}}" />
+<input type='submit' id='analyze_word_button' value='Analyze word'></input>
+
+<div id="command_bar"></div>
+
+<div id="corpus_desc"></div>
+
+
+{% include "word_desc.html" %}
+{% include "linegraph_v3_spaces.html" %}
+{% include "slopegraph.html" %}
+{% include "linegraph_v3.html" %}
+{% include "field_desc.html" %}
+{% include "custom_spaces.html" %}
+
+
+
+
+
+<script type="text/javascript" src="/static/word.js"></script>
+<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+
+
+<script type="text/javascript" src="/static/word-client.js"></script>
+</center>
+
+
+
+
+<script>
+
+	$(function () {
+		$('#feedback').html('document ready..1.')
+		var socket = io();
+
+
+		function analyze_word() {
+			$('#feedback').html('analyze_word!')
+			word=get_word();
+			socket.emit('mostSimilar', word);
+		}
+
+
+		$('#analyze_word_button').click(function() { analyze_word();});
+		$('#analyze_word').bind("enterKey",function(e){ analyze_word(); });
+		$('#analyze_word').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
+
+
+
+		socket.on('mostSimilar_resp', function(data){
+			console.log('got this reply!',data);
+			data.forEach(function(d){
+				console.log(d,'...')
+				$('#feedback').append('<li>'+d.word+' ('+d.dist+')</li>')
+			});
+		});
+
+		socket.on('getVector_resp', function(data){
+			console.log('got this reply!',data);
+			// data.forEach(function(d){
+			// 	console.log(d,'...')
+			// });
+
+
+		});
+
+});
+</script>
+
+
+
+
+
+{% endblock %}

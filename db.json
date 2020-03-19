@@ -1,0 +1,19 @@
+{
+  "posts": [
+    {
+      "id": 1,
+      "title": "lowdb is awesome"
+    }
+  ],
+  "user": {
+    "name": "typicode"
+  },
+  "count": 1,
+  "vecs": {},
+  "words": [
+    {
+      "msg": "hello",
+      "a": 1
+    }
+  ]
+}
