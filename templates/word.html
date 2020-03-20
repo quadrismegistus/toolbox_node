@@ -4,8 +4,9 @@
 
 
 <center>
-<input id="analyze_word" type="textbox" name="word" value="{{WORD}}" />
+<input id="analyze_word" type="textbox" name="word" value="king+woman-man" />
 <input type='submit' id='analyze_word_button' value='Analyze word'></input>
+# Number of top words to connect: <input type='textbox' id='n_top' style="width:2em;"></center>
 
 <div id="command_bar"></div>
 
@@ -19,62 +20,116 @@
 {% include "field_desc.html" %}
 {% include "custom_spaces.html" %}
 
+{% include "word_network.html" %}
 
 
 
 
 <script type="text/javascript" src="/static/word.js"></script>
 <script type="text/javascript" src="/socket.io/socket.io.js"></script>
-
-
 <script type="text/javascript" src="/static/word-client.js"></script>
+<script type="text/javascript" src="/static/springy.js"></script>
+<script type="text/javascript" src="/static/springyui.js"></script>
+
+
+<canvas id="net_canvas" width="600" height="600" />
+
+
 </center>
 
 
 
+<!-- <div id="cy"></div> -->
+<style>
+    #cy {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0px;
+        left: 0px;
+    }
+</style>
+
 
 <script>
-
-	$(function () {
-		$('#feedback').html('document ready..1.')
-		var socket = io();
-
-
-		function analyze_word() {
-			$('#feedback').html('analyze_word!')
-			word=get_word();
-			socket.emit('mostSimilar', word);
-		}
+function status(data) {
+	$('#status').prepend(data+'<br/>'); //+$('#status').html());
+}
+function log(x) {
+	status('<< '+x);
+}
 
 
-		$('#analyze_word_button').click(function() { analyze_word();});
-		$('#analyze_word').bind("enterKey",function(e){ analyze_word(); });
-		$('#analyze_word').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
+$(function () {
+	var socket = io();
 
 
 
-		socket.on('mostSimilar_resp', function(data){
-			console.log('got this reply!',data);
-			data.forEach(function(d){
-				console.log(d,'...')
-				$('#feedback').append('<li>'+d.word+' ('+d.dist+')</li>')
-			});
+	function analyze_word() {
+		$('#status').html('')
+		// $('#feedback').html('analyze_word!')
+		word=get_word();
+		args={'word':word}
+		args['n_top']=$('#n_top').val();
+		log('get_vectors('+word+')');
+		socket.emit('get_vectors', args);
+	}
+
+	// prepare page
+	// $('#feedback').html('document ready...')
+	$('#analyze_word_button').click(function() { analyze_word();});
+	$('#analyze_word').bind("enterKey",function(e){ analyze_word(); });
+	$('#analyze_word').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
+
+
+	socket.on('status', function(data){ 
+		status(data);
+	});
+
+	// client-side response routing
+	socket.on('get_most_similar_resp', function(data){
+		//console.log('got this reply!',data);
+		log('received response to get_most_similar()')
+		
+    	// make a new graph
+		var graph = new Springy.Graph();
+
+		id2node={}
+		data.nodes.forEach(function(node_d) { 
+		  id=node_d['id']
+		  node_d['label']=node_d['id']
+		  id2node[id]=graph.newNode(node_d);
 		});
 
-		socket.on('getVector_resp', function(data){
-			console.log('got this reply!',data);
-			// data.forEach(function(d){
-			// 	console.log(d,'...')
-			// });
+		data.links.forEach(function(link_d) {
+		  node1=id2node[link_d['source']];
+		  node2=id2node[link_d['target']];
+		  graph.newEdge(node1, node2);
+		});	
+		$('#net_canvas').html('')
+		$('#net_canvas').springy({ graph: graph });
 
 
-		});
+	});
 
+	socket.on('get_vectors_resp', function(data){
+		log('received response to get_vectors()')
+		
+		html=''
+    	for (var word in data) {
+    		html+='<li>'+word+':'+data[word].slice(0,5).join(' ')+'...'
+    	}
+    	$('#feedback').html(html)
+
+
+	});
+
+
+
+
+	// $('#analyze_word').enter();
+	analyze_word();
 });
 </script>
-
-
-
-
 
 {% endblock %}

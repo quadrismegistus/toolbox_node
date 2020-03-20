@@ -489,3 +489,8 @@ function analyze_word(view = undefined, points='average') {
 		$('#footer').html('<hr/><small>[Cite: <a href="'+url+'" target="_blank">'+url+'</a></small>]')
 
 }
+
+
+
+
+

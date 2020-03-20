@@ -110,4 +110,4 @@ GLOBAL_OPTS['y_vec_str']='Young - Old'
 
 
 
-w2v_fn = 'static/data/db/models/data.model.COHA.1810-2020.yearbin=30.min_count=100.txt'
+DEFAULT_W2V_FN = 'static/data/db/models/COHA_bythirtyyear_nonf_full/chained/1810-1840.txt'

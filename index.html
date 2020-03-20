@@ -28,27 +28,23 @@
 
 
 
-		<script src="/socket.io/socket.io.js"></script>
+		
 		<script>
 		  var socket = io();
 		</script>
-		<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 		<script>
 		  $(function () {
 
-				var socket = io();
+			var socket = io();
 
-		    $('form').submit(function(e){
-		      e.preventDefault(); // prevents page reloading
-		      socket.emit('msg', $('#m').val());
-		      $('#m').val('');
-		      return false;
-		    });
+		    
 
-
-				socket.on('msg', function(msg){
+			socket.on('msg', function(msg){
 		      $('#messages').append($('<li>').text(msg));
 		    });
+
+
+				analyze_word()
 
 
 

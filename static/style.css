@@ -5,6 +5,7 @@ body {
   /*font-family: monospace;*/
   /*max-width:800px;*/
 }
+#content { height:100%; width:100%; }
 
 input { font-size: 18px; }
 
@@ -318,19 +319,39 @@ select { height:30px; }
 
 
 #progressbar {
-  /* float:right; */
+   float:right; 
   margin: 0px;
   width: 75px;
   height: 75px;
-  /* position: relative; */
-  /* position:absolute; */
+   position: relative; 
+   /*position:absolute; */
   /* top:5px; */
   /* right:5px; */
-  #fixed-div {
+  /*#fixed-div {*/
     /* position: fixed; */
     /* top: 1em; */
     /* right: 1em; */
 }
+
+#status {
+  width: 400px;
+  height:200px;
+   float:left; 
+  margin: 0px;
+  color:gray;
+  /*width: 200px;*/
+  /*height: 75px;*/
+  /*position:relative;*/
+  text-align: right;
+      position: fixed;
+    bottom: -75;
+    right: 0;
+  font-size:10px;
+    /* position: fixed; */
+    /* top: 1em; */
+    /* right: 1em; */
+}
+
 
 
 }
@@ -349,3 +370,8 @@ select { height:30px; }
 .word_legend { cursor: pointer; }
 .word_label { cursor: pointer; }
 .dot { cursor: pointer; }
+
+
+
+
+/*#conent { h }*/

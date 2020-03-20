@@ -33,57 +33,15 @@
     window.d3 = null;
 </script> -->
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js" charset="utf-8"></script>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script src="/static/base.js"></script>
     <script type="text/javascript" src="/static/progressbar.js"></script>
     <script type="text/javascript" src="/static/vector_math.js"></script>
     <script src="/static/jquery.magnific-popup.min.js"></script>
-
-    <script src="/static/math.min.js"></script>
-
-    <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-    <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
-    <!-- Latest compiled and minified JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-
-
+    <!-- <script src="/static/math.min.js"></script> -->
     <link rel="stylesheet" href="/static/style.css" />
-
-
-
     <script type="text/javascript" charset="utf-8">
-
-      $(function() {
-        $('.popup_about').magnificPopup({
-          type: 'ajax',
-          items: { src: '/about' },
-          showCloseBtn: true,
-          closeBtnInside: true
-        });
-      });
-
-      /**
-       * Load multiple JSON files.
-       *
-       * Example usage:
-       *
-       * jQuery.getMultipleJSON('file1.json', 'file2.json')
-       *   .fail(function(jqxhr, textStatus, error){})
-       *   .done(function(file1, file2){})
-       * ;
-       */
-      jQuery.getMultipleJSON = function(){
-        return jQuery.when.apply(jQuery, jQuery.map(arguments, function(jsonfile){
-          return jQuery.getJSON(jsonfile);
-        })).then(function(){
-          var def = jQuery.Deferred();
-          return def.resolve.apply(def, jQuery.map(arguments, function(response){
-            return response[0];
-          }));
-        });
-      };
-
 
 
 
@@ -91,6 +49,7 @@
 
   </head>
   <body>
+    <div id='status'></div>
     <div id='progressbar'></div>
     <div id='header'>
       <div id='title'>Cambridge Keydata Project</div>
@@ -122,6 +81,16 @@
 
 
 <script>
+
+$(function() {
+  $('.popup_about').magnificPopup({
+    type: 'ajax',
+    items: { src: '/about' },
+    showCloseBtn: true,
+    closeBtnInside: true
+  });
+});
+
 $(window).on('load',function(){
 $(window).scroll(function () {
     if(($("#content").position().top - $(window).scrollTop()) <= 0)
