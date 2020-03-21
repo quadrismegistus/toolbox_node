@@ -38,7 +38,7 @@ function get_self_url(starter='/word/') {
 
 	url_server='http://'+window.location.href.split('/')[2].replace(/\/+$/, "")
 
-	<!-- url_server='http://cambridgekeydata.org' -->
+	// url_server='http://cambridgekeydata.org'
 	url = starter
 	url += get_word()
 	cmd=get_cmd()

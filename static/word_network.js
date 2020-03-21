@@ -1,156 +1,282 @@
-// //
-// //  main.js
-// //
-// //  A project template for using arbor.js
-// //
+function draw_net(data) {
+	$('#command_bar').html("# top words: <input type='textbox' id='n_top' style=\"width:2em;\">")
 
-// (function($){
+	draw_net_springy(data)
+}
 
-//   var Renderer = function(canvas){
-//     var canvas = $(canvas).get(0)
-//     var ctx = canvas.getContext("2d");
-//     var particleSystem
 
-//     var that = {
-//       init:function(system){
-//         //
-//         // the particle system will call the init function once, right before the
-//         // first frame is to be drawn. it's a good place to set up the canvas and
-//         // to pass the canvas size to the particle system
-//         //
-//         // save a reference to the particle system for use in the .redraw() loop
-//         particleSystem = system
 
-//         // inform the system of the screen dimensions so it can map coords for us.
-//         // if the canvas is ever resized, screenSize should be called again with
-//         // the new dimensions
-//         particleSystem.screenSize(canvas.width, canvas.height) 
-//         particleSystem.screenPadding(80) // leave an extra 80px of whitespace per side
-        
-//         // set up some event handlers to allow for node-dragging
-//         that.initMouseHandling()
-//       },
-      
-//       redraw:function(){
-//         // 
-//         // redraw will be called repeatedly during the run whenever the node positions
-//         // change. the new positions for the nodes can be accessed by looking at the
-//         // .p attribute of a given node. however the p.x & p.y values are in the coordinates
-//         // of the particle system rather than the screen. you can either map them to
-//         // the screen yourself, or use the convenience iterators .eachNode (and .eachEdge)
-//         // which allow you to step through the actual node objects but also pass an
-//         // x,y point in the screen's coordinate system
-//         // 
-//         ctx.fillStyle = "white"
-//         ctx.fillRect(0,0, canvas.width, canvas.height)
-        
-//         particleSystem.eachEdge(function(edge, pt1, pt2){
-//           // edge: {source:Node, target:Node, length:#, data:{}}
-//           // pt1:  {x:#, y:#}  source position in screen coords
-//           // pt2:  {x:#, y:#}  target position in screen coords
 
-//           // draw a line from pt1 to pt2
-//           ctx.strokeStyle = "rgba(0,0,0, .333)"
-//           ctx.lineWidth = 1
-//           ctx.beginPath()
-//           ctx.moveTo(pt1.x, pt1.y)
-//           ctx.lineTo(pt2.x, pt2.y)
-//           ctx.stroke()
-//         })
 
-//         particleSystem.eachNode(function(node, pt){
-//           // node: {mass:#, p:{x,y}, name:"", data:{}}
-//           // pt:   {x:#, y:#}  node position in screen coords
+function draw_net_springy(data) {
+	// make a new graph
+		var graph = new Springy.Graph();
 
-//           // draw a rectangle centered at pt
-//           var w = 10
-//           ctx.fillStyle = (node.data.alone) ? "orange" : "black"
-//           ctx.fillRect(pt.x-w/2, pt.y-w/2, w,w)
-//         })    			
-//       },
-      
-//       initMouseHandling:function(){
-//         // no-nonsense drag and drop (thanks springy.js)
-//         var dragged = null;
+		id2node={}
+		data.nodes.forEach(function(node_d) { 
+		  id=node_d['id']
+		  node_d['label']=node_d['id'][0].toUpperCase() + node_d['id'].slice(1)
+		  //font-family: "Source Code Pro", Consolas, monaco, monospace;
+		  // node_d['font']='16px Baskerville, Georgia, Serif'
+		  node_d['font']='16px monospace'
+		  if(node_d['label'].slice(0,2)=='V(') {
+		  	node_d['color']='#001f3f'
+		  	// node_d['font-style']='italic';
+		  }
+		  id2node[id]=graph.newNode(node_d);
+		});
 
-//         // set up a handler object that will initially listen for mousedowns then
-//         // for moves and mouseups while dragging
-//         var handler = {
-//           clicked:function(e){
-//             var pos = $(canvas).offset();
-//             _mouseP = arbor.Point(e.pageX-pos.left, e.pageY-pos.top)
-//             dragged = particleSystem.nearest(_mouseP);
+		data.links.forEach(function(link_d) {
+		  node1=id2node[link_d['source']];
+		  node2=id2node[link_d['target']];
+		  // edge_d={'stroke-width':10,'color':'red','opacity':0.25, 'size':10}
+		  graph.newEdge(node1, node2, {'weight':link_d['weight']*2});
+		});	
+		$('#net_canvas').html('')
+		// $('#net_canvas').springy({ graph: graph,
+		// 	nodeSelected: function(node){
+  //    		 console.log('Node selected: ' + JSON.stringify(node.data));
+  //   		}
 
-//             if (dragged && dragged.node !== null){
-//               // while we're dragging, don't let physics move the node
-//               dragged.node.fixed = true
-//             }
+		// });
 
-//             $(canvas).bind('mousemove', handler.dragged)
-//             $(window).bind('mouseup', handler.dropped)
+		jQuery(function(){
+		  var springy = window.springy = jQuery('#net_canvas').springy({
+		    graph: graph,
+		    nodeSelected: function(node){
+		      console.log('Node selected: ' + JSON.stringify(node.data));
+		    }
+		  });
+		});
+}
 
-//             return false
-//           },
-//           dragged:function(e){
-//             var pos = $(canvas).offset();
-//             var s = arbor.Point(e.pageX-pos.left, e.pageY-pos.top)
 
-//             if (dragged && dragged.node !== null){
-//               var p = particleSystem.fromScreen(s)
-//               dragged.node.p = p
-//             }
 
-//             return false
-//           },
 
-//           dropped:function(e){
-//             if (dragged===null || dragged.node===undefined) return
-//             if (dragged.node !== null) dragged.node.fixed = false
-//             dragged.node.tempMass = 1000
-//             dragged = null
-//             $(canvas).unbind('mousemove', handler.dragged)
-//             $(window).unbind('mouseup', handler.dropped)
-//             _mouseP = null
-//             return false
-//           }
-//         }
-        
-//         // start listening
-//         $(canvas).mousedown(handler.clicked);
 
-//       },
-      
-//     }
-//     return that
-//   }    
+function draw_net_d3(data) {
 
-//   $(document).ready(function(){
-//     var sys = arbor.ParticleSystem(1000, 600, 0.5) // create the system with sensible repulsion/stiffness/friction
-//     sys.parameters({gravity:true}) // use center-gravity to make the graph settle nicely (ymmv)
-//     sys.renderer = Renderer("#viewport") // our newly created renderer will have its .init() method called shortly by sys...
+	$('#cy').html('<svg width="960" height="600" id="svg_net"></svg>')
 
-//     // add some nodes to the graph and watch it go...
-//     sys.addEdge('a','b')
-//     sys.addEdge('a','c')
-//     sys.addEdge('a','d')
-//     sys.addEdge('a','e')
-//     sys.addNode('f', {alone:true, mass:.25})
+	var svg = d3v4.select("#svg_net"),
+	    width = +svg.attr("width"),
+	    height = +svg.attr("height");
 
-//     // or, equivalently:
-//     //
-//     // sys.graft({
-//     //   nodes:{
-//     //     f:{alone:true, mass:.25}
-//     //   }, 
-//     //   edges:{
-//     //     a:{ b:{},
-//     //         c:{},
-//     //         d:{},
-//     //         e:{}
-//     //     }
-//     //   }
-//     // })
-    
-//   })
+	var color = d3v4.scaleOrdinal(d3v4.schemeCategory20);
 
-// })(this.jQuery)
+	var simulation = d3v4.forceSimulation()
+	    .force("link", d3v4.forceLink().id(function(d) { return d.id; }))
+	    .force("charge", d3v4.forceManyBody())
+	    .force("center", d3v4.forceCenter(width / 2, height / 2));
+
+	d3v4.entries(data, function(error, graph) {
+		console.log('>>',error,graph)
+	  if (error) throw error;
+
+	  var link = svg.append("g")
+	      .attr("class", "links")
+	    .selectAll("line")
+	    .data(graph.links)
+	    .enter().append("line")
+	      .attr("stroke-width", function(d) { return Math.sqrt(d.value); });
+
+	  var node = svg.append("g")
+	      .attr("class", "nodes")
+	    .selectAll("g")
+	    .data(graph.nodes)
+	    .enter().append("g")
+	    
+	  var circles = node.append("circle")
+	      .attr("r", 5)
+	      .attr("fill", function(d) { return color(d.group); })
+	      .call(d3v4.drag()
+	          .on("start", dragstarted)
+	          .on("drag", dragged)
+	          .on("end", dragended));
+
+	  var lables = node.append("text")
+	      .text(function(d) {
+	        return d.id;
+	      })
+	      .attr('x', 6)
+	      .attr('y', 3);
+
+	  node.append("title")
+	      .text(function(d) { return d.id; });
+
+	  simulation
+	      .nodes(graph.nodes)
+	      .on("tick", ticked);
+
+	  simulation.force("link")
+	      .links(graph.links);
+
+	  function ticked() {
+	    link
+	        .attr("x1", function(d) { return d.source.x; })
+	        .attr("y1", function(d) { return d.source.y; })
+	        .attr("x2", function(d) { return d.target.x; })
+	        .attr("y2", function(d) { return d.target.y; });
+
+	    node
+	        .attr("transform", function(d) {
+	          return "translate(" + d.x + "," + d.y + ")";
+	        })
+	  }
+	});
+
+	function dragstarted(d) {
+	  if (!d3v4.event.active) simulation.alphaTarget(0.3).restart();
+	  d.fx = d.x;
+	  d.fy = d.y;
+	}
+
+	function dragged(d) {
+	  d.fx = d3v4.event.x;
+	  d.fy = d3v4.event.y;
+	}
+
+	function dragended(d) {
+	  if (!d3v4.event.active) simulation.alphaTarget(0);
+	  d.fx = null;
+	  d.fy = null;
+	}
+}
+
+
+
+function draw_net_cola(data) { 
+
+	var width = 960,
+        height = 500;
+
+    var color = d3v4.scaleOrdinal(d3v4.schemeCategory20);
+
+    var cola = cola.d3adaptor(d3v4)
+        .size([width, height]);
+
+    var svg = d3v4.select("#cy").append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    d3v4.entries(data, function (error, graph) {
+    	console.log(error)
+    	console.log(graph)
+
+        cola
+            .nodes(graph.nodes)
+            .links(graph.links)
+            .jaccardLinkLengths(40,0.7)
+            .start(30);
+
+        var link = svg.selectAll(".link")
+            .data(graph.links)
+          .enter().append("line")
+            .attr("class", "link")
+            .style("stroke-width", function (d) { return Math.sqrt(d.value); });
+
+        var node = svg.selectAll(".node")
+            .data(graph.nodes)
+          .enter().append("circle")
+            .attr("class", "node")
+            .attr("r", 5)
+            .style("fill", function (d) { return color(d.group); })
+            .call(cola.drag);
+
+        node.append("title")
+            .text(function (d) { return d.name; });
+
+        cola.on("tick", function () {
+            link.attr("x1", function (d) { return d.source.x; })
+                .attr("y1", function (d) { return d.source.y; })
+                .attr("x2", function (d) { return d.target.x; })
+                .attr("y2", function (d) { return d.target.y; });
+
+            node.attr("cx", function (d) { return d.x; })
+                .attr("cy", function (d) { return d.y; });
+        });
+    });
+
+}
+
+
+
+
+
+
+
+
+
+
+function draw_net_cy(data) {
+	// console.log('draw_net_cy',data);
+	all_data = []
+	all_data.push(...data.nodes)
+	all_data.push(...data.links)
+	console.log('all_data',all_data)
+
+	var defaultOptions = {
+	  // Called on `layoutready`
+	  ready: function () {
+	  },
+	  // Called on `layoutstop`
+	  stop: function () {
+	  },
+	  // 'draft', 'default' or 'proof" 
+	  // - 'draft' fast cooling rate 
+	  // - 'default' moderate cooling rate 
+	  // - "proof" slow cooling rate
+	  quality: 'default',
+	  // Whether to include labels in node dimensions. Useful for avoiding label overlap
+	  nodeDimensionsIncludeLabels: false,
+	  // number of ticks per frame; higher is faster but more jerky
+	  refresh: 30,
+	  // Whether to fit the network view after when done
+	  fit: true,
+	  // Padding on fit
+	  padding: 10,
+	  // Whether to enable incremental mode
+	  randomize: true,
+	  // Node repulsion (non overlapping) multiplier
+	  nodeRepulsion: 4500,
+	  // Ideal (intra-graph) edge length
+	  idealEdgeLength: 50,
+	  // Divisor to compute edge forces
+	  edgeElasticity: 0.45,
+	  // Nesting factor (multiplier) to compute ideal edge length for inter-graph edges
+	  nestingFactor: 0.1,
+	  // Gravity force (constant)
+	  gravity: 0.25,
+	  // Maximum number of iterations to perform
+	  numIter: 2500,
+	  // Whether to tile disconnected nodes
+	  tile: true,
+	  // Type of layout animation. The option set is {'during', 'end', false}
+	  animate: 'end',
+	  // Duration for animate:end
+	  animationDuration: 500,
+	  // Amount of vertical space to put between degree zero nodes during tiling (can also be a function)
+	  tilingPaddingVertical: 10,
+	  // Amount of horizontal space to put between degree zero nodes during tiling (can also be a function)
+	  tilingPaddingHorizontal: 10,
+	  // Gravity range (constant) for compounds
+	  gravityRangeCompound: 1.5,
+	  // Gravity force (constant) for compounds
+	  gravityCompound: 1.0,
+	  // Gravity range (constant)
+	  gravityRange: 3.8,
+	  // Initial cooling factor for incremental layout
+	  initialEnergyOnIncremental: 0.5
+	};
+
+	var cy = cytoscape({
+	  container: document.getElementById('cy'),
+	  elements: all_data
+	});
+
+	// defaultOptions['name']='cose-bilkent'
+	// cy.layout(defaultOptions);
+
+	cy.run();
+
+}
