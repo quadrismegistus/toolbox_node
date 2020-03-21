@@ -176,7 +176,8 @@ function average_vecs(WordVecs) {
 function get_spacetype() { res=localStorage.getItem('points'); if(res){return res;}else{return 'average';} }
 
 function get_word() {
-	current_word_form_in_input_bar = $('#analyze_word').val().replace(' ','');
+	current_word_form_in_input_bar = $('#analyze_word').val().split(' ').join('')
+	current_word_form_in_input_bar = current_word_form_in_input_bar.trim().split('\n').join(',')
 	localStorage.setItem('words',current_word_form_in_input_bar);
 	return current_word_form_in_input_bar;
 }
@@ -418,7 +419,7 @@ function show_cmd_bar(word, cmd=undefined) {
 
 
 
-function analyze_word(view = undefined, points='average') {
+function analyze_word0(view = undefined, points='average') {
 	// get word input
 	$('#analyze_word').val($('#analyze_word').val().replace(' ',''))
 	word = get_word();

@@ -1,9 +1,26 @@
-{% extends "base.html" %}
+{% extends "base2.html" %}
+
+{%block cmdbar %}
+
+<div id="cmdbar_net" style="display:none">
+
+	<h3>Network of similar words</h3>
+	<li>Link to closest N neighbors: <input type='textbox' id='n_top' value="5" style="width:2em;"></input></li>
+
+
+
+</div>
+
+{%endblock%}
+
+
 {% block content %}
 
+<center><div id="canvas_div">
 
+	<canvas id="net_canvas" />
 
-
+</div></center>
 
 
 <!-- <center> -->
@@ -12,7 +29,7 @@
 
 <!-- </center> -->
 
-<div id="command_bar"></div>
+
 
 <div id="corpus_desc"></div>
 
@@ -37,7 +54,7 @@
 
 
 
-<canvas id="net_canvas" width="960" height="600" />
+
 
 </center>
     <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/2.5.7/shim.min.js"></script>
@@ -58,6 +75,15 @@
 
 
 <script>
+
+var w2v_fns = {{w2v_fns | dump | safe}};
+
+// console.log(w2v_fns,'w2v_fns')
+
+
+
+
+
 function status(data) {
 	$('#status').prepend(data+'<br/>'); //+$('#status').html());
 }
@@ -65,27 +91,102 @@ function log(x) {
 	status('<< '+x);
 }
 
+function get_opts() {
+	opts={}
+	opts['word']=get_word();
+	opts['n_top']=$('#n_top').val();
+	opts['corpus']=$('#corpus').val()
+	opts['period_type']=$('#period_type').val()
+	opts['period']=$('#period').val()
+
+	console.log('opts',opts)
+	return opts;
+
+}
+
 
 
 $(function () {
 	var socket = io();
 
+	var w2v_fns = {{w2v_fns | dump | safe}}
+	console.log('w2v_fns',w2v_fns)
 
 
-	function analyze_word() {
+	function analyze_word(subpage='simnet') {
+		var view = subpage;
+		// console.log($('#analyze_word_form').serialize());
+		clear_viz();
+		$.magnificPopup.close();
 		$('#status').html('')
-		// $('#feedback').html('analyze_word!')
-		word=get_word();
-		args={'word':word}
-		args['n_top']=$('#n_top').val();
-		log('get_vectors('+word+')');
-		socket.emit('get_vectors', args);
+		opts = get_opts()
+
+		console.log('>> analyze_word',opts,subpage)
+		
+		if (view==undefined) { var view=get_cmd(); }
+			all_periods = use_all_periods()
+			if (view == "spaces") {
+				$('#custom_spaces').hide();
+				$('#custom_opts_table').hide();
+				localStorage.setItem('view','spaces')
+				get_spaces(word, all_periods=all_periods);
+			} else if (view == "ranks") {
+				localStorage.setItem('view','ranks')
+				$('#custom_opts_table').hide();
+				$('#custom_spaces').hide();
+				get_ranks(word,popup=false);
+
+			} else if (view == "custom") {
+				localStorage.setItem('view','custom')
+				$('#custom_opts_table').show();
+				$('#custom_spaces').show();
+				custom_spaces(word,all_periods=all_periods);
+			} else if (view == "simnet") {
+				
+				log('get_vectors('+opts+')');
+				socket.emit('get_vectors', opts);
+
+			} else {
+				localStorage.setItem('view','spaces')
+				$('#custom_opts_table').hide();
+				$('#custom_spaces').hide();
+				get_spaces(word,all_periods=all_periods)
+		  }
+
+		// cache_vars();
+		// var url=get_self_url();
+		// console.log('URL??',url);
+		// window.history.pushState({state: "dummyState"}, "Title", url);
+		// $('#footer').html('<hr/><small>[Cite: <a href="'+url+'" target="_blank">'+url+'</a></small>]')
+
+
 	}
+
+	$('#period_type').change(function(){ 
+		console.log('period_type changed!')
+		$('#period').html('')
+		corpus=$('#corpus').val().trim();
+		ptype=$('#period_type').val().trim();
+		console.log(corpus,ptype);
+		if (corpus in w2v_fns) {
+			// $('#period').append("<option value='combined'>combined</option>");
+			for (var period in w2v_fns[corpus][ptype]) {
+				console.log('period',period)
+				$('#period').append("<option value='"+period+"'>"+period+"</option>");
+			}
+		}
+		analyze_word();
+	});
+
+	$('#corpus').change(function(){ analyze_word();});
+	$('#period').change(function(){ analyze_word();});
 
 	// prepare page
 	// $('#feedback').html('document ready...')
 	$('#analyze_word_button').click(function() { analyze_word();});
 	$('#analyze_word').bind("enterKey",function(e){ analyze_word(); });
+	$('#n_top').bind("enterKey",function(e){ analyze_word(); });
+	$('#n_top').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
 	$('#analyze_word').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
 
 
@@ -95,7 +196,7 @@ $(function () {
 
 	// client-side response routing
 	socket.on('get_most_similar_resp', function(data){
-		console.log('got this reply!',data);
+		//console.log('got this reply!',data);
 		log('received response to get_most_similar()')
     	draw_net(data);
 

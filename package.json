@@ -12,6 +12,7 @@
     "cytoscape": "^3.14.1",
     "d3": "^5.15.0",
     "d3-node": "^2.2.1",
+    "dataframe-js": "^1.4.3",
     "express": "^4.17.1",
     "expression-eval": "^2.1.0",
     "formula-parser": "^2.0.1",
@@ -25,6 +26,7 @@
     "mocha-jsdom": "^2.0.0",
     "nano": "^8.2.2",
     "operator-overloading": "^0.5.1",
+    "pandas-js": "^0.2.4",
     "socket.io": "^2.3.0",
     "sqlite3": "^4.1.1",
     "word2vec": "^1.1.4"

@@ -1,6 +1,11 @@
 function draw_net(data) {
-	$('#command_bar').html("# top words: <input type='textbox' id='n_top' style=\"width:2em;\">")
 
+	// $('#command_bar').html(cmdbar)
+	$('#cmdbar_net').show();
+	$('#net_canvas').remove()
+	$('#canvas_div').html('<canvas id="net_canvas" min-width="600px" width="900px" height="750px" /></div></center>')
+	// $('#n_top').bind("enterKey",function(e){ analyze_word(); });
+	// $('#n_top').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
 	draw_net_springy(data)
 }
 
@@ -12,15 +17,29 @@ function draw_net_springy(data) {
 	// make a new graph
 		var graph = new Springy.Graph();
 
+		// which nodes are sources
+		sources=[]
+		data.links.forEach(function(link_d) {
+			if(!sources.includes(link_d.source)) { sources.push(link_d.source); }
+		});
+		console.log(sources)
+
 		id2node={}
 		data.nodes.forEach(function(node_d) { 
 		  id=node_d['id']
 		  node_d['label']=node_d['id'][0].toUpperCase() + node_d['id'].slice(1)
 		  //font-family: "Source Code Pro", Consolas, monaco, monospace;
 		  // node_d['font']='16px Baskerville, Georgia, Serif'
-		  node_d['font']='16px monospace'
+		  if (sources.includes(id)) { 
+		  	node_d['font-weight']='bold'
+		  	node_d['font']='20px monospace'
+		   } else {
+		   	node_d['font-weight']='normal' 
+		   	node_d['font']='16px monospace'
+		   }
+		  
 		  if(node_d['label'].slice(0,2)=='V(') {
-		  	node_d['color']='#001f3f'
+		  	// node_d['color']='#001f3f'
 		  	// node_d['font-style']='italic';
 		  }
 		  id2node[id]=graph.newNode(node_d);
