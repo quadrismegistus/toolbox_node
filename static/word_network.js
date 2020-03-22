@@ -299,3 +299,280 @@ function draw_net_cy(data) {
 	cy.run();
 
 }
+
+
+
+
+
+
+
+function draw_dynamic_chart(dynamic_data) {
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height"),
+    color = d3.scaleOrdinal(d3.schemeCategory20b);
+
+var a = {id: "a"},
+	b = {id: "b"},
+	c = {id: "c"},
+	d = {id: "d"},
+	e = {id: "e"},
+	f = {id: "f"},
+	g = {id: "g"},
+	h = {id: "h"},
+	i = {id: "i"},
+	j = {id: "j"},
+	k = {id: "k"},
+	l = {id: "l"},
+	m = {id: "m"},
+	n = {id: "n"},
+	o = {id: "o"},
+	p = {id: "p"},
+  q = {id: "q"},
+	r = {id: "r"},  
+  s = {id: "s"},
+	t = {id: "t"},
+  u = {id: "u"},
+  v = {id: "v"},
+  w = {id: "w"},
+  x = {id: "x"},
+  y = {id: "y"},
+  z = {id: "z"};
+     
+ jsonData = [
+ {
+   "time": 1,
+   "node1": a,
+   "node2": b
+ },
+ {
+   "time": 2,
+   "node1": a,
+   "node2": e
+ },
+ {
+   "time": 3,
+   "node1": a,
+   "node2": d
+ },
+ {
+   "time": 4,
+   "node1": b,
+   "node2": c
+ },
+ {
+   "time": 5,
+   "node1": d,
+   "node2": e
+ },
+ {
+   "time": 6,
+   "node1": f,
+   "node2": g
+ },
+ {
+   "time": 7,
+   "node1": p,
+   "node2": f
+ },
+ {
+   "time": 8,
+   "node1": e,
+   "node2": d
+ },
+ {
+   "time": 9,
+   "node1": e,
+   "node2": f
+ },
+ {
+   "time": 10,
+   "node1": f,
+   "node2": i
+ },
+ {
+   "time": 11,
+   "node1": j,
+   "node2": f
+ },
+ {
+   "time": 12,
+   "node1": l,
+   "node2": g
+ },
+ {
+   "time": 13,
+   "node1": i,
+   "node2": j
+ }, 
+ {
+   "time": 14,
+   "node1": g,
+   "node2": h
+ },
+ {
+   "time": 15,
+   "node1": o,
+   "node2": p
+ },
+ {
+   "time": 16,
+   "node1": m,
+   "node2": l
+ },
+ {
+   "time": 17,
+   "node1": q,
+   "node2": r
+ },
+ {
+   "time": 21,
+   "node1": q,
+   "node2": s
+ },
+ {
+   "time": 22,
+   "node1": q,
+   "node2": t
+ },
+ {
+   "time": 23,
+   "node1": j,
+   "node2": k
+ },
+ {
+   "time": 24,
+   "node1": j,
+   "node2": p
+ },
+ {
+   "time": 25,
+   "node1": o,
+   "node2": n
+ },
+ {
+   "time": 26,
+   "node1": x,
+   "node2": x
+ },
+ {
+   "time": 29,
+   "node1": p,
+   "node2": q
+ },
+ {
+   "time": 30,
+   "node1": q,
+   "node2": o
+ },
+ {
+   "time": 33,
+   "node1": t,
+   "node2": u
+ },
+ {
+   "time": 33,
+   "node1": x,
+   "node2": z
+ }  
+]
+    nodes = [a],
+    links = [];
+    times = jsonData.map(e => e.time);  // store all the times
+  maxtime = d3.max(times);  // get the maximum time to know when to stop
+  
+  
+  
+var simulation = d3.forceSimulation(nodes)
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("link", d3.forceLink(links).distance(80))
+    .force("x", d3.forceX())
+    .force("y", d3.forceY())
+    .alphaTarget(1)
+    .on("tick", ticked);
+
+var g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")"),
+    link = g.append("g").attr("stroke", "#000").attr("stroke-width", 1.5).selectAll(".link"),
+    node = g.append("g").attr("stroke", "#fff").attr("stroke-width", 1.5).selectAll(".node");
+
+restart();
+
+var intervl = setInterval(tickfn,1000),
+	counterr = 0;
+	
+function tickfn(){
+	counterr ++;
+	if(counterr == maxtime){
+		clearInterval(intervl);
+	}
+	jsonData.forEach(function(jsdata){
+		if(counterr == jsdata.time){
+			if(!contains(nodes,jsdata.node1)){
+				nodes.push(jsdata.node1);
+			}
+			if(!contains(nodes,jsdata.node2)){
+				nodes.push(jsdata.node2);
+			}
+			links.push({source: jsdata.node1, target: jsdata.node2});
+		}
+	});
+  	d3.select('text').html(counterr);
+  	restart();
+}
+
+  
+  function contains(a, obj) {
+    var i = a.length;
+    while (i--) {
+       if (a[i] === obj) {
+           return true;
+       }
+    }
+    return false;
+}
+
+  
+  
+function restart() {
+
+  // Apply the general update pattern to the nodes.
+  node = node.data(nodes, function(d) { return d.id;});
+  node.exit().remove();
+  node = node.enter().append("circle")
+    .style('opacity', 1)
+    .attr("fill", function(d) { return color(d.id); })
+    .attr("r", 8)
+    .merge(node)
+    ;
+
+  // Apply the general update pattern to the links.
+  link = link.data(links, function(d) { return d.source.id + "-" + d.target.id; });
+  link.exit().remove();
+  link = link.enter().append("line")
+       .merge(link);
+
+  // Update and restart the simulation.
+  simulation.nodes(nodes);
+  simulation.force("link").links(links);
+  simulation.alpha(1).restart();
+}
+
+  
+  
+function ticked() {
+  node
+    .attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; })
+
+  link
+    .attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; });
+}
+
+
+
+
+}

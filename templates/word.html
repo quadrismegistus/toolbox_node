@@ -20,8 +20,10 @@
 
 	<canvas id="net_canvas" />
 
-</div></center>
+</div>
 
+<div id="umap"></div>
+</center>
 
 <!-- <center> -->
 
@@ -50,6 +52,7 @@
 <script type="text/javascript" src="/static/word-client.js"></script>
 <script type="text/javascript" src="/static/springy.js"></script>
 <script type="text/javascript" src="/static/springyui.js"></script>
+<script type="text/javascript" src="/static/drawing.js"></script>
 <!-- <script type="text/javascript" src="/static/cytoscape.min.js"></script> -->
 
 
@@ -81,11 +84,33 @@ var w2v_fns = {{w2v_fns | dump | safe}};
 // console.log(w2v_fns,'w2v_fns')
 
 
+var options = {{input_options | dump | safe}};
+
+
+function clear_viz() {
+	$("#data_view").html("");
+	$('#linegraph_spaces').html("");
+	$('#linegraph').html("");
+	$('#slopegraph').html("");
+	$('#spaces_custom_viz').html("");
+	$('#umap').html("")
+	$('#net_canvas').remove()
+}
 
 
 
-function status(data) {
+function refresh_analyze_word() {
+	$('#analyze_word_div').html('<input id="analyze_word" type="text" id="input-tags" class="input-tags demo-default" value="">')
+}
+
+
+function status(data,max_lines=10) {
+	// lines = $('#status').html().split('<br/>')
+	// kept_lines = lines.slice(lines.length-9)
+	// kept_lines.push(data)
+	// new_str = kept_lines.join('<br/>')
 	$('#status').prepend(data+'<br/>'); //+$('#status').html());
+	// $('#status').html(new_str)
 }
 function log(x) {
 	status('<< '+x);
@@ -95,6 +120,7 @@ function get_opts() {
 	opts={}
 	opts['word']=get_word();
 	opts['n_top']=$('#n_top').val();
+	opts['expand_n']=$('#expand_n').val();
 	opts['corpus']=$('#corpus').val()
 	opts['period_type']=$('#period_type').val()
 	opts['period']=$('#period').val()
@@ -102,6 +128,27 @@ function get_opts() {
 	console.log('opts',opts)
 	return opts;
 
+}
+
+function init_selectize() {
+	$('#analyze_word').selectize({
+	  plugins: ['remove_button'],
+	  persist: false,
+	  create: true,
+	  render: {
+	    item: function(data, escape) {
+	      return '<div>' + escape(data.text) + '</div>';
+	    }
+	  },
+	  onChange: function () {
+	        analyze_word();
+	  },
+	 
+	});
+	// var selectize = $('#analyze_word')[0].selectize
+	// options.forEach(function(opt_d) { selectize.addOption(opt_d) })
+	// selectize.refreshOptions()
+	// selectize.close()
 }
 
 
@@ -113,6 +160,8 @@ $(function () {
 	console.log('w2v_fns',w2v_fns)
 
 
+
+
 	function analyze_word(subpage='simnet') {
 		var view = subpage;
 		// console.log($('#analyze_word_form').serialize());
@@ -120,6 +169,8 @@ $(function () {
 		$.magnificPopup.close();
 		$('#status').html('')
 		opts = get_opts()
+
+		//clear_viz();
 
 		console.log('>> analyze_word',opts,subpage)
 		
@@ -146,6 +197,12 @@ $(function () {
 				log('get_vectors('+opts+')');
 				socket.emit('get_vectors', opts);
 
+			} else if (view=='expand') {
+				log('expanding words...')
+				socket.emit('expand_words',opts)
+			} else if (view=='umap') {
+				log('umapping words...')
+				socket.emit('get_umap',opts)
 			} else {
 				localStorage.setItem('view','spaces')
 				$('#custom_opts_table').hide();
@@ -178,16 +235,17 @@ $(function () {
 		analyze_word();
 	});
 
+
 	$('#corpus').change(function(){ analyze_word();});
 	$('#period').change(function(){ analyze_word();});
 
 	// prepare page
 	// $('#feedback').html('document ready...')
 	$('#analyze_word_button').click(function() { analyze_word();});
-	$('#analyze_word').bind("enterKey",function(e){ analyze_word(); });
+	// $('#analyze_word').bind("enterKey",function(e){ analyze_word(); });
 	$('#n_top').bind("enterKey",function(e){ analyze_word(); });
 	$('#n_top').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
-	$('#analyze_word').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
+	// $('#analyze_word').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
 
 
 	socket.on('status', function(data){ 
@@ -202,6 +260,48 @@ $(function () {
 
 	});
 
+	// client-side response routing
+	socket.on('get_umap_resp', function(data){
+		//console.log('got this reply!',data);
+		log('received response to get_umap()')
+		// $('#display').html("")
+    	// draw_net(data);
+    	DATA = []
+    	data.forEach(function(d) {
+    		d['period']='?'
+    		DATA.push(d)
+    	})
+
+    	plot_dynamic(DATA,
+		  word_col='label',
+		  y_col = "umap_V2",
+		  x_col = "umap_V1",
+		  t_col = "period",
+		  div_id="umap")
+	});
+
+	// client-side response routing
+	socket.on('expand_words_resp', function(msg){
+		console.log('expand_words_resp got this reply!',msg);
+		new_words=msg.data
+		
+		// $('#analyze_word').html("")
+		current_val = get_word()
+		new_val=current_val+','+new_words.join(',')
+		// console.log('current to new',current_val,new_val)
+		refresh_analyze_word()
+    	$('#analyze_word').val(new_val)
+		init_selectize()
+		// var selectize = $('#analyze_word')[0].selectize
+
+		// new_words.forEach(function(nw) { selectize.addItem(nw) })
+		// selectize.refreshItems()
+    	// analyze_word()
+    	// var e = $.Event( "keypress", { which: 13 } );
+		// $('#analyze_word').trigger(e)
+	});
+
+
 	socket.on('get_vectors_resp', function(data){
 		log('received response to get_vectors()')
 		
@@ -215,6 +315,21 @@ $(function () {
 	});
 
 
+
+// <select id="select-tools"></select>
+$('#analyze_word').val("{{DEFAULT_WORD_STR}}")
+init_selectize()
+// selectize.$dropdown.hide();
+// $('.selectize-dropdown').hide();
+// $('.selectize-input').removeClass('focus input-active dropdown-active');
+// $('div.selectize-input > input').blur();
+
+$('#link_expand').click(function() { analyze_word(subpage='expand') })
+$('#link_umap').click(function() { analyze_word(subpage='umap') })
+$('#link_simnet').click(function() { analyze_word(subpage='simnet') })
+$('#link_spaces').click(function() { analyze_word(subpage='spaces') })
+$('#link_custom').click(function() { analyze_word(subpage='custom') })
+$('#link_ranks').click(function() { analyze_word(subpage='ranks') })
 
 
 	// $('#analyze_word').enter();

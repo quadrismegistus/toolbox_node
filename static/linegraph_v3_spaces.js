@@ -30,44 +30,44 @@ function make_linegraph_spaces(word, y_col = "Tangible (MT) <> Intangible (MT)",
 // console.log('attached data1 :',attached_data);
 
 
-$('#progressbar').html("")
-var bar = new ProgressBar.Circle(progressbar, {
-  color: '#aaa',
-  // This has to be the same size as the maximum width to
-  // prevent clipping
-  strokeWidth: 6,
-  trailWidth: 1,
-  // easing: 'easeInOut',
-  duration: 0,
-  text: {
-    autoStyleContainer: false
-  },
-  from: { color: '#aaa', width: 1 },
-  to: { color: '#333', width: 4 },
-  // Set default step function for all animate calls
-  step: function(state, circle) {
-    circle.path.setAttribute('stroke', state.color);
-    circle.path.setAttribute('stroke-width', state.width);
+// $('#progressbar').html("")
+// var bar = new ProgressBar.Circle(progressbar, {
+//   color: '#aaa',
+//   // This has to be the same size as the maximum width to
+//   // prevent clipping
+//   strokeWidth: 6,
+//   trailWidth: 1,
+//   // easing: 'easeInOut',
+//   duration: 0,
+//   text: {
+//     autoStyleContainer: false
+//   },
+//   from: { color: '#aaa', width: 1 },
+//   to: { color: '#333', width: 4 },
+//   // Set default step function for all animate calls
+//   step: function(state, circle) {
+//     circle.path.setAttribute('stroke', state.color);
+//     circle.path.setAttribute('stroke-width', state.width);
 
-    var value = Math.round(circle.value() * 100);
-    if (value === 0) {
-      circle.setText('');
-    } else {
-      circle.setText(value+'%');
-    }
+//     var value = Math.round(circle.value() * 100);
+//     if (value === 0) {
+//       circle.setText('');
+//     } else {
+//       circle.setText(value+'%');
+//     }
 
-  }
-});
-// bar.text.style.fontFamily = '"Raleway", Helvetica, sans-serif';
-bar.text.style.fontSize = '1rem';
-bar.animate(0.0);
+//   }
+// });
+// // bar.text.style.fontFamily = '"Raleway", Helvetica, sans-serif';
+// bar.text.style.fontSize = '1rem';
+// bar.animate(0.0);
 
 
 
 console.log('midmax',[y_min,y_mid,y_max],[x_min,x_mid,x_max]);
 
 
-$('#spaces_'+div_id).html( $('#spaces_'+div_id).html() + '<h3>' +sp_title + '</h3>\n');
+// $('#spaces_'+div_id).html( $('#spaces_'+div_id).html() + '<h3>' +sp_title + '</h3>\n');
 
 
 var colors = ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02","#a6761d","#666666",
@@ -92,10 +92,12 @@ var colors = ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02","#a676
 
       width = parseInt($('#spaces_width').val()) - margin.left - margin.right,
       height = parseInt($('#spaces_height').val()) - margin.top - margin.bottom;
+
+
       // var width = orig_height;
       // var height = orig_width;
   // append the svg object to the body of the page
-  var svg = d3v4.select("#spaces_"+div_id)
+  var svg = d3v4.select(div_id)
     .append("svg")
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
@@ -141,6 +143,8 @@ var colors = ["#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02","#a676
         .attr("y2", height);
 
 
+console.log('svg',svg)
+
 function do_word(svg,word,color,w_i,x_col,y_col,x_min,x_max,y_min,y_max,all_periods=undefined,ifn_dir=IFN_DIR,attached_data=undefined) {
   // console.log('do_words(',word,color,w_i,attached_data,')');
   // console.log('do_word_all_periods',all_periods)
@@ -161,6 +165,8 @@ var successCallback =     //
   //   //Now I can use this dataset:
 function(data) {
       d=data;
+
+      console.log('have data',data)
 
 
       // clean data
@@ -261,37 +267,37 @@ function(data) {
           ////// console.log(json);
           ////// console.log(_period, json[_period] );
 
-          $('#progressbar').html("")
-          var bar = new ProgressBar.Circle(progressbar, {
-            color: '#aaa',
-            // This has to be the same size as the maximum width to
-            // prevent clipping
-            strokeWidth: 6,
-            trailWidth: 1,
-            // easing: 'easeInOut',
-            duration: 0,
-            text: {
-              autoStyleContainer: false
-            },
-            from: { color: '#aaa', width: 1 },
-            to: { color: '#333', width: 4 },
-            // Set default step function for all animate calls
-            step: function(state, circle) {
-              circle.path.setAttribute('stroke', state.color);
-              circle.path.setAttribute('stroke-width', state.width);
+          // $('#progressbar').html("")
+          // var bar = new ProgressBar.Circle(progressbar, {
+          //   color: '#aaa',
+          //   // This has to be the same size as the maximum width to
+          //   // prevent clipping
+          //   strokeWidth: 6,
+          //   trailWidth: 1,
+          //   // easing: 'easeInOut',
+          //   duration: 0,
+          //   text: {
+          //     autoStyleContainer: false
+          //   },
+          //   from: { color: '#aaa', width: 1 },
+          //   to: { color: '#333', width: 4 },
+          //   // Set default step function for all animate calls
+          //   step: function(state, circle) {
+          //     circle.path.setAttribute('stroke', state.color);
+          //     circle.path.setAttribute('stroke-width', state.width);
 
-              var value = Math.round(circle.value() * 100);
-              if (value === 0) {
-                circle.setText('');
-              } else {
-                circle.setText(value+'%');
-              }
+          //     var value = Math.round(circle.value() * 100);
+          //     if (value === 0) {
+          //       circle.setText('');
+          //     } else {
+          //       circle.setText(value+'%');
+          //     }
 
-            }
-          });
-          // bar.text.style.fontFamily = '"Raleway", Helvetica, sans-serif';
-          bar.text.style.fontSize = '1rem';
-          bar.animate(0.0);
+          //   }
+          // });
+          // // bar.text.style.fontFamily = '"Raleway", Helvetica, sans-serif';
+          // bar.text.style.fontSize = '1rem';
+          // bar.animate(0.0);
 
 
 
@@ -488,6 +494,7 @@ var errorCallback = function(error){
   if (attached_data != undefined) {
 
     promise = new Promise(function(resolve, reject) {
+      console.log('attached_data!',attached_data)
       var w_attached_data = [];
       for (adi=0; adi<attached_data.length;adi++) {
         if(attached_data[adi].word == w) {
@@ -495,28 +502,30 @@ var errorCallback = function(error){
         }
       }
 
-      // average ?
-      if (all_periods==false) {
-        var wdata_ld=[];
-        // console.log('all_periods!!!',all_periods)
-        wdx = {'word':w, 'period':'_total'}
-        dim_words_l.forEach(function(dw) {
-          dim_words_col = [];
-          w_attached_data.forEach(function(wdat){ dim_words_col.push(wdat[dw]) });
-          dim_words_col_avg = nj.array(dim_words_col).mean();
-          wdx[dw]=dim_words_col_avg
-        });
-        // console.log('wdx',wdx);
-        wdata_ld.push(wdx)
-      w_attached_data = wdata_ld
-      }
+      console.log('hello???')
+
+      // // average ?
+      // if (all_periods==false) {
+      //   var wdata_ld=[];
+      //   // console.log('all_periods!!!',all_periods)
+      //   wdx = {'word':w, 'period':'_total'}
+      //   dim_words_l.forEach(function(dw) {
+      //     dim_words_col = [];
+      //     w_attached_data.forEach(function(wdat){ dim_words_col.push(wdat[dw]) });
+      //     dim_words_col_avg = nj.array(dim_words_col).mean();
+      //     wdx[dw]=dim_words_col_avg
+      //   });
+      //   // console.log('wdx',wdx);
+      //   wdata_ld.push(wdx)
+      // w_attached_data = wdata_ld
+      // }
 
 
 
       // console.log('wdata2',w_attached_data)
 
       // console.log('resolve',resolve);  // console.log('resolve',reject); // console.log('attached_data4',w_attached_data);
-      return resolve(w_attached_data);
+      resolve(w_attached_data);
     });
 
   } else {
@@ -545,7 +554,7 @@ var errorCallback = function(error){
 
 
 
-
+console.log('words???',words)
 if (words == undefined) { words = split_words(word); }
 // console.log(words);
 
@@ -577,7 +586,7 @@ for(_wi = 0; _wi<words.length; _wi++) {
           ifn_dir=ifn_dir,
           attached_data=attached_data);
 }
-bar.animate((_wi)/words.length);
+// bar.animate((_wi)/words.length);
 
 
 } // end of make_linegraph

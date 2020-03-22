@@ -19,32 +19,13 @@ W2V_MODEL_FNS = {
 			// "1950-1999":"static/data/db/models/COHA_byhalfcentury_nonf/chained_full/1950-1999.txt",			
 			"1800-1849":"static/data/db/models/COHA_byhalfcentury_nonf/chained/1800-1849.txt",
 			"1850-1899":"static/data/db/models/COHA_byhalfcentury_nonf/chained/1850-1899.txt",
-			"1900-1949":"static/data/db/models/COHA_byhalfcentury_nonf/chained/1900-1949.txt",
-			"1950-1999":"static/data/db/models/COHA_byhalfcentury_nonf/chained/1950-1999.txt",			
+			// "1900-1949":"static/data/db/models/COHA_byhalfcentury_nonf/chained/1900-1949.txt",
+			// "1950-1999":"static/data/db/models/COHA_byhalfcentury_nonf/chained/1950-1999.txt",			
 		}
 	}
 }
 DEFAULT_CORPUS = 'COHA'
 DEFAULT_PERIOD_TYPE = 'byhalfcentury'
-
-
-
-
-
-W2V_MODELS = {
-	'COHA': {
-		'byhalfcentury':{
-			'combined': {
-				"fn": "static/data/db/models/COHA_byhalfcentury_nonf/chained_full_combined/1800-2000.min=100.run=01.txt",
-				'periods':['1800','1850','1900','1950']
-			}
-		}
-	}
-}
-
-
-
-
 
 const fs = require('fs');
 
@@ -65,10 +46,11 @@ var fn2voc={}
 const math = require('mathjs')
 
 function get_vocab(fn) {
-	return new Promise(function(resolve,reject) {
-		
+	var all_vocab
+
+	promise = new Promise(function(resolve,reject) {
+		var all_vocab =[]
 		fs.readFile(fn, "UTF8", function(err, data) {
-			var all_vocab =[]
 			vtxt=data
 			var all_vocab=[]
 			lines=vtxt.split('\n')
@@ -78,62 +60,124 @@ function get_vocab(fn) {
 				//console.log(word)
 				all_vocab.push(word)
 			});
-			// console.log('all_vocab',all_vocab)
-			resolve(all_vocab)
+			//console.log('all_vocab',all_vocab)
 		})
-		
+		return resolve(all_vocab)
+	});
+	//promise.then(all_vocab=>all_vocab)
+	//console.log('new all_vocab',all_vocab)
+
+
+	return all_vocab
+}
+
+
+// get model (as a promise)
+function get_model(w2v_fn = DEFAULT_W2V_FN) { 
+	console.log('>> loading w2v_fn:',w2v_fn)
+
+	var promises=[]
+	if(w2v_fn in fn2M) {
+		promises.push(new Promise(function(resolve,reject) { return resolve(fn2M[w2v_fn]) }))
+		promises.push(new Promise(function(resolve,reject) { return resolve(fn2voc[w2v_fn]) }))
+	} else {
+		voc_fn=w2v_fn.replace('.txt','.vocab.txt')
+		// console.log('voc_fn',voc_fn)
+		// promises.push(get_vocab(voc_fn))
+		// promises.push(w2v.loadModel(w2v_fn))
+		promises.push(new Promise(function(resolve,reject) { return resolve(w2v.loadModel(w2v_fn)) }))
+		promises.push(new Promise(function(resolve,reject) { return resolve(get_vocab(voc_fn)) }))
+	}
+
+	
+
+	promise = new Promise(function(resolve,reject) {
+		var promise_res = undefined
+		console.log('>> promises:',promises)
+
+		Promise.all(promises).then(function(promised_data,error) {
+			console.log('promised_data',promised_data)
+
+			vocab=promised_data[0]
+			model=promised_data[1]
+
+	  		if(error!==null) { console.log("errror?",error,model); }
+	  		console.log('>> finished loading model:',w2v_fn);
+	  		// console.log('model', model );
+	  		fn2M[w2v_fn]=model
+	  		fn2voc[w2v_fn]=vocab
+	  		// m = resolve(model);
+	  		// vocab = resolve()
+
+	  		promise_res = resolve(model,vocab)
+	  	}).catch(function(err) { console.log('err!',err)});
+
+	  	return promise_res
+  	});
+
+	return promise
+}
+
+// get model (as a promise)
+function get_model0(w2v_fn = DEFAULT_W2V_FN) { 
+	console.log('>> loading w2v_fn:',w2v_fn)
+	let promise = new Promise(function(resolve,reject) { 
+		var m = undefined;
+		if(w2v_fn in fn2M) {
+			m = resolve(fn2M[w2v_fn]);
+		} else {
+			vocab=get_vocab(w2v_fn.replace('.txt','.vocab.txt'))
+			console.log('got vocab',vocab)
+			w2v.loadModel( w2v_fn, function( error, model ) {
+		  		if(error!==null) { console.log("errror?",error,model); }
+		  		console.log('>> finished loading model:',w2v_fn);
+		  		//console.log( model );
+		  		fn2M[w2v_fn]=model;
+		  		m = resolve(model);
+			});
+		}
+		return (m,vocab);
+	});
+	return promise;
+}
+
+
+
+
+// get model (as a promise)
+function get_all_models(w2v_fns = W2V_MODEL_FNS[DEFAULT_CORPUS][DEFAULT_PERIOD_TYPE]) { 
+	console.log('get_all_models()')
+	var promises = []
+	var periods = []
+	for(var period in w2v_fns) {
+		periods.push(period)
+		period_fn = w2v_fns[period]
+		promise = get_model(period_fn)
+		promises.push(promise)
+	}
+
+	console.log('promises',promises)
+	console.log('periods',periods)
+
+	return new Promise(function(resolve,reject) {
+		var period2model = {}
+		var all_words = []
+		Promise.all(promises).then(function(models) {
+			models.forEach(function(model_vocab) {
+				console.log('model_vocab',model_vocab)
+				model=model_vocab[0]
+				mvocab=model_vocab[1]
+
+				console.log('model!',model)
+				mvocab.forEach(function (vw) { if (!all_words.includes(vw)) { all_words.push(vw) } })
+				period=periods[i]
+				period2model[period]=model
+			});
+		}).catch(function(err) { console.log('err!',err)});
+
+		return resolve((period2model,all_words))
 	});
 }
-
-// get model (as a promise)
-async function get_model(w2v_fn = DEFAULT_W2V_FN) { 
-	console.log('>> loading w2v_fn:',w2v_fn)
-	var voc_fn=w2v_fn.replace('.txt','.vocab.txt')
-	var model_promise
-	var vocab_promise
-	if(w2v_fn in fn2M) {
-		console.log('>> RESTORING FROM CACHE:',w2v_fn)
-		vocab_promise = new Promise(function(res,rej) { res(fn2voc[w2v_fn]) })
-		model_promise = new Promise(function(res,rej) { res(fn2M[w2v_fn]) })
-	} else {
-		model_promise = new Promise(function(res,rej) { 
-			w2v.loadModel(w2v_fn,function(err,model) {
-				fn2M[w2v_fn]=model
-				//console.log('loaded',w2v_fn,model)
-				res(model)
-			})
-		})
-		vocab_promise = new Promise(function(res,rej) { 
-			get_vocab(voc_fn).then(function(all_vocab) {
-				fn2voc[w2v_fn]=all_vocab
-				res(all_vocab)
-			})
-		})
-	}
-	M = await model_promise
-	Voc = await vocab_promise
-	//console.log("mvoc2",M,Voc)
-	return [M,Voc]
-}
-
-
-// get model (as a promise)
-async function get_all_models(w2v_fns = W2V_MODEL_FNS[DEFAULT_CORPUS][DEFAULT_PERIOD_TYPE]) { 
-	console.log('get_all_models()')
-	var period2model = {}
-	var all_vocab = []
-	for(var period in w2v_fns) {
-		period_fn = w2v_fns[period]
-		model_vocab = await get_model(period_fn)
-		model = model_vocab[0]
-		vocab = model_vocab[1]
-		vocab.forEach(function(w) { if(!all_vocab.includes(w)) { all_vocab.push(w) } })
-		period2model[period]=model
-	}
-	return [period2model,all_vocab]
-}
-
-
 
 function opts2model_fn(opts) {
 	corpus=opts['corpus']
@@ -151,7 +195,7 @@ function get_most_similar(word,n_top=DEFAULT_N_SIMILAR,w2v_fn=DEFAULT_W2V_FN) {
 		get_model(w2v_fn).then(function(model_vocab) { 
 			M=model_vocab[0]
 			vocab=model_vocab[1]
-			//console.log('>> got back model:',M)
+			console.log('>> got back model:',M)
 
 			// new: account for multiple words
 			word_list = split_words(word);
@@ -160,7 +204,7 @@ function get_most_similar(word,n_top=DEFAULT_N_SIMILAR,w2v_fn=DEFAULT_W2V_FN) {
 			word_list.forEach(function(w) { 
 				try { 
 					sims = M.mostSimilar(w, n_top)
-					//console.log('>> M.mostSimilar()',w2v_fn,w,sims)
+					console.log('>> M.mostSimilar()',w2v_fn,w,sims)
 
 					sims.forEach(function(sim_d) {
 						new_sim_d={}
@@ -216,11 +260,6 @@ function get_most_similar_by_vector(formula2vec={},n_top=DEFAULT_N_SIMILAR,w2v_f
 
 
 
-
-
-
-
-
 function mostsim2netjson(most_similar_data,cutoff=DEFAULT_CSIM_CUTOFF) {
 	// format data
 	var nodes = []
@@ -264,8 +303,6 @@ function mostsim2netjson(most_similar_data,cutoff=DEFAULT_CSIM_CUTOFF) {
 
 
 function get_vectors(word_or_words_str,io_log=console.log,w2v_fn=DEFAULT_W2V_FN) {
-	//console.log('fn2M',fn2M)
-
 	var word_or_words_str;
 	const path = require('path'); 
 	var DataFrame = require('dataframe-js').DataFrame;
@@ -276,7 +313,7 @@ function get_vectors(word_or_words_str,io_log=console.log,w2v_fn=DEFAULT_W2V_FN)
 		get_model(w2v_fn).then(function(model_vocab) { 
 			M=model_vocab[0]
 			vocab=model_vocab[1]
-			//console.log('MODEL:',M)
+			console.log('MODEL:',M)
 			
 			word_or_words_str=reformat_formula_str(word_or_words_str)
 			var word_list = split_words_only(word_or_words_str);
@@ -289,7 +326,7 @@ function get_vectors(word_or_words_str,io_log=console.log,w2v_fn=DEFAULT_W2V_FN)
 
 			io_log('loaded model: "'+path.basename(w2v_fn,'.txt')+'"')
 
-			//console.log('word_or_words_str',word_or_words_str)
+			console.log('word_or_words_str',word_or_words_str)
 
 			// new: account for multiple words
 
@@ -346,7 +383,7 @@ function get_vectors(word_or_words_str,io_log=console.log,w2v_fn=DEFAULT_W2V_FN)
 				// was_new = (!word_list.includes(formula_str) & formula_str[0]!='[')
 				was_new = (!word_list.includes(formula_str) | formula_str[0]=='[')
 				if (was_new) { formula_str = 'V('+reformat_formula_str(formula_str)+')' }
-				//console.log(formula_str,was_new)
+				console.log(formula_str,was_new)
 				new_vec_dir[formula_str] = new_vec
 			});
 			return resolve(new_vec_dir);
@@ -595,54 +632,6 @@ for (ni=0; ni<numdat.length; ni++) {
 }
 return numl
 }
-
-
-
-
-
-
-
-
-
-
-function get_umap_from_vector_data(name2vec) {
-	console.log(name2vec)
-
-	data = []
-	names = []
-	for(name in name2vec) {
-		data.push(name2vec[name])
-		names.push(name)
-	}
-	console.log('names',names)
-
-	umapjs = require('umap-js')
-
-	const umap = new umapjs.UMAP({
-					  nComponents: 2,
-					  nEpochs: 400,
-					  nNeighbors: 3,
-					});
-	const embedding = umap.fit(data,nComponents=2)
-
-	out_ld = []
-	embedding.forEach(function(erow,i) {
-		out_d={'label':names[i], 'umap_V1':erow[0], 'umap_V2':erow[1]}
-		out_ld.push(out_d)
-		console.log(out_d)
-	})
-
-	return out_ld
-}
-
-
-
-
-
-
-
-
-
 
 
 
@@ -910,6 +899,18 @@ function custom_spaces(word=undefined, points="movement") {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 exports.get_model = get_model
 exports.get_vectors = get_vectors
 exports.get_most_similar = get_most_similar
@@ -921,6 +922,3 @@ exports.get_all_models=get_all_models
 exports.content_words=content_words
 exports.field2words=field2words
 exports.vec_names=vec_names
-exports.split_words=split_words
-exports.split_words_only=split_words_only
-exports.get_umap_from_vector_data=get_umap_from_vector_data

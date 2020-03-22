@@ -4,7 +4,7 @@
 //DEFAULT_W2V_FN = 'static/data/db/models/COHA_bythirtyyear_nonf_full/chained_combined/1810-2020.min=100.run=01.txt'
 // DEFAULT_W2V_FN="/Volumes/Present/DH/data/models/COHA_byhalfcentury_nonf/chained_full_combined/1800-2000.min=100.run=01.txt"
 DEFAULT_W2V_FN="/Volumes/Present/DH/data/models/COHA_byhalfcentury_nonf/separate3_allskips/1800-1849.txt.run=01.txt"
-
+DEFAULT_WORD_STR="value,price,importance,value-price,value-importance"
 
 
 
@@ -36,6 +36,25 @@ nunjucks.configure('templates/', { autoescape: false, express: app });
 
 // const pd = require('pandas-js')
 
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+}
+
 
 
 // Word2vec
@@ -46,12 +65,38 @@ console.log('embed',embed)
 
 // http routing
 app.get('/', function(req, res){ 
-  console.log(embed.W2V_MODEL_FNS)
-  return res.render('word.html',
+  // console.log(embed.W2V_MODEL_FNS)
 
-    {w2v_fns:embed.W2V_MODEL_FNS}
-  ); 
+  period2model__all_words = embed.get_all_models()
+
+  embed.get_all_models().then(function(period2model__all_words) {
+    console.log('period2model__all_words',period2model__all_words)
+    period2model = period2model__all_words[0]
+    all_words = period2model__all_words[1]
+
+    options=[]
+
+    var all_vecnames = []
+    all_vecnames.push(...all_words)
+    for (var field in embed.field2words) { all_vecnames.push(field)}
+    all_vecnames.push(...embed.vec_names)
+
+    all_vecnames.forEach(function(w) { 
+      options.push({'text':w,'value':w})
+    });
+    // console.log(options)
+    array = shuffle(options)
+    
+    params = {
+      w2v_fns:embed.W2V_MODEL_FNS,
+      input_options:options,
+      DEFAULT_WORD_STR:DEFAULT_WORD_STR
+    }
+    return res.render('word.html',params);   
+  })
 });
+
+
 http.listen(port, function(){ console.log('listening on *:'+port); });
 
 
@@ -87,6 +132,59 @@ io.on('connection', function(socket){
 		.catch(function(err) { console.log('err!!',err); });
   });
 
+  // mostSimilar() -- find most similar
+  socket.on('expand_words', function(args) {
+    // get most similar
+    io_log('received requst: get_vectors()')
+
+    var word=args['word'] //.toLowerCase();
+    var expand_n=parseInt(args['expand_n']); //.toInteger();
+    
+    w2v_fn=embed.opts2model_fn(args)
+    console.log('deduced w2v_fn:',w2v_fn)
+
+    embed.get_vectors(word, io_log=log, w2v_fn=w2v_fn)
+    .then(function(vector_data) {
+      // console.log('received vector_data',vector_data);
+      log('received vector_data')
+      //console.log('vector_data',vector_data)
+
+      // average the vectors all together
+      var vecs = []
+      for(var name in vector_data) { 
+        vec = vector_data[name]
+        if(vec!=undefined) { 
+          vecs.push(vec)
+        }
+      }
+      console.log(vecs)
+
+      const math = require('mathjs')
+      sumvec = math.add(...vecs)
+      words_already=embed.split_words(word)
+
+      embed.get_most_similar_by_vector({'sumvec':sumvec},n_top=expand_n*10,w2v_fn=w2v_fn,log=io_log)
+      .then(function(most_similar_data) {
+
+        var matches = []
+        console.log('mostsim!',most_similar_data)
+        most_similar_data.forEach(function(d) {
+          if(!words_already.includes(d.word2)) {
+            words_already.push(d.word2)
+            console.log(matches.length,expand_n,words_already)
+            if(matches.length < expand_n) {
+              matches.push(d.word2)
+            }
+          }
+        })
+
+        console.log('matches!',matches)
+        io.to(socket.id).emit('expand_words_resp',{'data':matches})
+
+      }).catch(function(err) { console.log('err!!',err); })
+
+    }).catch(function(err) { console.log('err!!',err); })
+  })
 
   // mostSimilar() -- find most similar
   socket.on('get_vectors', function(args) {
@@ -124,6 +222,27 @@ io.on('connection', function(socket){
 		.catch(function(err) { 
 			console.log('err!!',err); 
 		});
+
+
+
+    // mostSimilar() -- find most similar
+  socket.on('get_umap', function(args) {
+    // get most similar
+    io_log('received request: get_umap()')
+
+    var word=args['word'] //.toLowerCase();
+    w2v_fn=embed.opts2model_fn(args)
+    
+    embed.get_vectors(word, io_log=log, w2v_fn=w2v_fn)
+      .then(function(vector_data) {
+        //console.log('received vector_data',vector_data);
+
+        umap_data = embed.get_umap_from_vector_data(vector_data)
+        
+        io.to(socket.id).emit('get_umap_resp',umap_data);
+      })
+      .catch(function(err) { console.log('err!!',err); });
+    });
   });
 });
 

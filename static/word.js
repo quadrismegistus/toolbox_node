@@ -1,10 +1,10 @@
-function clear_viz() {
-			$("#data_view").html("");
-			$('#linegraph_spaces').html("");
-			$('#linegraph').html("");
-			$('#slopegraph').html("");
-			$('#spaces_custom_viz').html("");
-}
+// function clear_viz() {
+// 			$("#data_view").html("");
+// 			$('#linegraph_spaces').html("");
+// 			$('#linegraph').html("");
+// 			$('#slopegraph').html("");
+// 			$('#spaces_custom_viz').html("");
+// }
 
 
 function cache_vars() {
