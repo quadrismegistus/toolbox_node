@@ -2,8 +2,9 @@
 // DEFAULT_W2V_FN = 'static/data/db/models/COHA_bythirtyyear_nonf_full/chained/1810-1840.txt'
 // DEFAULT_W2V_FN = 'static/data/db/models/COHA_bythirtyyear_nonf_full/chained/1990-2020.txt'
 //DEFAULT_W2V_FN = 'static/data/db/models/COHA_bythirtyyear_nonf_full/chained_combined/1810-2020.min=100.run=01.txt'
+DEFAULT_W2V_FN="/Volumes/Present/DH/data/models/COHA_byhalfcentury_nonf/chained_combined/1800-1999.min=500.run=01.txt"
 // DEFAULT_W2V_FN="/Volumes/Present/DH/data/models/COHA_byhalfcentury_nonf/chained_full_combined/1800-2000.min=100.run=01.txt"
-DEFAULT_W2V_FN="/Volumes/Present/DH/data/models/COHA_byhalfcentury_nonf/separate3_allskips/1800-1849.txt.run=01.txt"
+// DEFAULT_W2V_FN="/Volumes/Present/DH/data/models/COHA_byhalfcentury_nonf/separate3_allskips/1800-1849.txt.run=01.txt"
 DEFAULT_WORD_STR="value,price,importance,value-price,value-importance"
 
 
@@ -59,192 +60,131 @@ function shuffle(array) {
 
 // Word2vec
 var embed = require('./embedding.js')
-console.log('embed',embed)
-
+var networks = require('./networks.js')
+var spaces = require('./spaces.js')
 
 
 // http routing
 app.get('/', function(req, res){ 
   // console.log(embed.W2V_MODEL_FNS)
 
-  period2model__all_words = embed.get_all_models()
-
-  embed.get_all_models().then(function(period2model__all_words) {
-    console.log('period2model__all_words',period2model__all_words)
-    period2model = period2model__all_words[0]
-    all_words = period2model__all_words[1]
-
-    options=[]
-
-    var all_vecnames = []
-    all_vecnames.push(...all_words)
-    for (var field in embed.field2words) { all_vecnames.push(field)}
-    all_vecnames.push(...embed.vec_names)
-
-    all_vecnames.forEach(function(w) { 
-      options.push({'text':w,'value':w})
-    });
-    // console.log(options)
-    array = shuffle(options)
-    
+  // embed.with_model().then(function(model) {
     params = {
-      w2v_fns:embed.W2V_MODEL_FNS,
-      input_options:options,
+      // w2v_fns:embed.W2V_MODEL_FNS,
+      // input_options:options,
+      W2V_MODELS: embed.W2V_MODELS,
       DEFAULT_WORD_STR:DEFAULT_WORD_STR
     }
     return res.render('word.html',params);   
-  })
+  // })
 });
-
 
 http.listen(port, function(){ console.log('listening on *:'+port); });
 
 
-// SOCKET ROUTING
+
+
+// SOCKET ROUTING'
+var num_conn=0
+
 io.on('connection', function(socket){
-  // console.log('a user connected...');
-  var io_log = function(x) { console.log(x); io.to(socket.id).emit('status','>> '+x); }
-  var log = io_log
-
+  num_conn+=1
+  var log = function(x) { console.log(x); io.to(socket.id).emit('status','(server) '+x); }
   
-  // mostSimilar() -- find most similar
-  socket.on('get_most_similar', function(args) {
-  	// get most similar
-  	io_log('received requst: get_vectors()')
 
-  	var word = args['word'] //.toLowerCase();
-  	var n_top;
-  	if(args['n_top']) { n_top=args['n_top'] } else { n_top=DEFAULT_N_SIMILAR }
+  log(num_conn.toString() + ' ppl connected')
+
+  var progress = function(domain_val,opts) { 
+
+    range=opts['progress_range']
+    domain=opts['progress_domain']
     
-    w2v_fn=embed.opts2model_fn(args)
-    console.log('deduced w2v_fn:',w2v_fn)
-  	
-  	embed.get_most_similar(word, n_most_similar=n_top, w2v_fn=w2v_fn)
-  		.then(function(most_similar_data) {
-  			
-  			io.to(socket.id).emit('status','converting to network data format')
-  			network_data = embed.mostsim2netjson(most_similar_data)
+    if(range==undefiend) { range=[0,1] }
+    if(domain==undefined) { domain = [0,1] }
 
-  			// send back main response
-  			io.to(socket.id).emit('status','sending network data to browser')
-    		io.to(socket.id).emit('get_most_similar_resp',network_data);
-		})
-		.catch(function(err) { console.log('err!!',err); });
-  });
+    dval = (domain_val-domain[0]) / (domain[1]-domain[0])
+    dval_in_range = (dval-range[0]) / (range[1]-range[0])
 
-  // mostSimilar() -- find most similar
-  socket.on('expand_words', function(args) {
-    // get most similar
-    io_log('received requst: get_vectors()')
-
-    var word=args['word'] //.toLowerCase();
-    var expand_n=parseInt(args['expand_n']); //.toInteger();
-    
-    w2v_fn=embed.opts2model_fn(args)
-    console.log('deduced w2v_fn:',w2v_fn)
-
-    embed.get_vectors(word, io_log=log, w2v_fn=w2v_fn)
-    .then(function(vector_data) {
-      // console.log('received vector_data',vector_data);
-      log('received vector_data')
-      //console.log('vector_data',vector_data)
-
-      // average the vectors all together
-      var vecs = []
-      for(var name in vector_data) { 
-        vec = vector_data[name]
-        if(vec!=undefined) { 
-          vecs.push(vec)
-        }
-      }
-      console.log(vecs)
-
-      const math = require('mathjs')
-      sumvec = math.add(...vecs)
-      words_already=embed.split_words(word)
-
-      embed.get_most_similar_by_vector({'sumvec':sumvec},n_top=expand_n*10,w2v_fn=w2v_fn,log=io_log)
-      .then(function(most_similar_data) {
-
-        var matches = []
-        console.log('mostsim!',most_similar_data)
-        most_similar_data.forEach(function(d) {
-          if(!words_already.includes(d.word2)) {
-            words_already.push(d.word2)
-            console.log(matches.length,expand_n,words_already)
-            if(matches.length < expand_n) {
-              matches.push(d.word2)
-            }
-          }
-        })
-
-        console.log('matches!',matches)
-        io.to(socket.id).emit('expand_words_resp',{'data':matches})
-
-      }).catch(function(err) { console.log('err!!',err); })
-
-    }).catch(function(err) { console.log('err!!',err); })
+    console.log('PROGRESS:',dval_in_range*100,'%'); 
+    io.to(socket.id).emit('progress',dval_in_range);
+  }
+  
+  
+  socket.on('mostsim', function(opts) {
+    var msg='mostsim'
+    log('starting '+msg+'()')
+    embed.with_model(opts,log=log,progress=progress).then(function(model) {
+      most_similar_data = model.get_most_similar(opts) 
+      log('finished '+msg+'()')
+      io.to(socket.id).emit(msg+'_resp', most_similar_data)
+    })
   })
 
-  // mostSimilar() -- find most similar
-  socket.on('get_vectors', function(args) {
-  	// get most similar
-  	io_log('received requst: get_vectors()')
+  // Draw most simialar
+  
+  socket.on('mostsimnet', function(opts) {
+    var msg='mostsimnet'
+    log('starting '+msg+'()')
+    // opts['bar'].animate(0.999)
+    opts['progress']=progress
 
-  	var word=args['word'] //.toLowerCase();
-  	var n_top=parseInt(args['n_top']); //.toInteger();
+    // modifying opts
+    opts['average_periods']=true
 
-    w2v_fn=embed.opts2model_fn(args)
-    console.log('deduced w2v_fn:',w2v_fn)
-  	
-  	
-  	embed.get_vectors(word, io_log=log, w2v_fn=w2v_fn)
-  		.then(function(vector_data) {
-  			// console.log('received vector_data',vector_data);
-  			log('received vector_data')
-  			//console.log('vector_data',vector_data)
+    console.log('mostsimnet_opts: ',opts)
 
+  	embed.with_model(opts,log=log,progress=progress).then(function(model) {
+      opts['progress_range']=[0.5,0.75]
+      most_similar_data = model.get_most_similar(opts) 
+      if(opts['progress']) { opts['progress'](0.5) }
 
-  			embed.get_most_similar_by_vector(vector_data,n_top=n_top,w2v_fn=w2v_fn,log=io_log)
-  				.then(function(most_similar_data) {
-  					log('received most_similar_data')
-  					//console.log(most_similar_data)
-  			
-		  			log('converting to network data format')
-		  			network_data = embed.mostsim2netjson(most_similar_data)
+      console.log('most_similar_data',most_similar_data)
+      network_data = networks.mostsim2netjson(most_similar_data)
+      if(opts['progress']) { opts['progress'](0.75) }
 
-		  			// send back main response
-		  			log('sending network data to browser')
-		    		io.to(socket.id).emit('get_most_similar_resp',network_data);
-				});
-
-		})
-		.catch(function(err) { 
-			console.log('err!!',err); 
-		});
+      log('finished '+msg+'()')
+      // format response
+      response_data = {'data':network_data}
+      io.to(socket.id).emit(msg+'_resp', response_data)
+    })
+  })
 
 
 
-    // mostSimilar() -- find most similar
-  socket.on('get_umap', function(args) {
-    // get most similar
-    io_log('received request: get_umap()')
+  // EXPANDING WORDS
+  socket.on('expandwords', function(opts) {
+    var msg='expandwords'
+    log('starting '+msg+'()', opts)
+    embed.with_model(opts,log=log).then(function(model) {
+      matches = model.get_expanded_wordset(opts)
+      log('finished '+msg+'()')
+      console.log('matches:',matches)
 
-    var word=args['word'] //.toLowerCase();
-    w2v_fn=embed.opts2model_fn(args)
-    
-    embed.get_vectors(word, io_log=log, w2v_fn=w2v_fn)
-      .then(function(vector_data) {
-        //console.log('received vector_data',vector_data);
+      io.to(socket.id).emit(msg+'_resp', matches)
+    })
+  })
 
-        umap_data = embed.get_umap_from_vector_data(vector_data)
-        
-        io.to(socket.id).emit('get_umap_resp',umap_data);
-      })
-      .catch(function(err) { console.log('err!!',err); });
-    });
+  // UMAPPING 
+  socket.on('get_umap', function(opts) {
+    var msg='get_umap'
+    log('starting '+msg+'()', opts)
+    embed.with_model(opts,log=log).then(function(model) {
+      log('periodizing input...')
+      opts['words_orig']=opts['words']
+      opts['words']=embed.periodize(opts['words'], opts['periods'])
+
+      log('getting vectors for: '+opts['words'].join(', '))
+      vector_data = model.get_vectors(opts)
+      
+      log('umapping data')
+      umap_data = embed.get_umap_from_vector_data(vector_data)
+      
+      log('sending back to browser')
+      io.to(socket.id).emit('get_umap_resp',umap_data);
+    })
   });
-});
+})
+
 
 
 

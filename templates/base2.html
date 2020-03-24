@@ -23,11 +23,23 @@
     <link rel="stylesheet" href="/static/magnific-popup.css">
     <link rel="stylesheet" href="/static/selectize.css" />
     <link rel="stylesheet" href="/static/style.css" />
+    <!-- <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu+Mono" /> -->
+    <!-- <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Open+Sans" /> -->
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Droid+Sans" />
 
 
     <!-- custom -->
     <script src="/static/base.js"></script>
     <script type="text/javascript" src="/static/vector_math.js"></script>
+    <script type="text/javascript" src="/static/word.js"></script>
+    <script type="text/javascript" src="/static/word-client.js"></script>
+    <script type="text/javascript" src="/static/springy.js"></script>
+    <script type="text/javascript" src="/static/springyui.js"></script>
+    <script type="text/javascript" src="/static/drawing.js"></script>
+    <script type="text/javascript" src="/static/word_network.js"></script>
+
+
+
   </head>
   <body>
     
@@ -35,129 +47,110 @@
 
     <!-- <div id="content"> -->
 
-      <div id="sidebar">
+<div id="sidebar">
 
 
-        <div id='header'>
-          <div id='title'>Cambridge Keydata Project</div>
-          <div id='subtitle'>Tools for computational semantics and conceptual history</div>
-          <!-- <br/> -->
-          <!-- <a href="#" class='popup_about'>About</a> | 
-          <a href="/word">Analyze word</a> | <a href="#" onclick="get_corpus(\'COHA\')">Corpus</a> | <a href="https://docs.google.com/spreadsheets/d/1gH5pO3z-og2Pj3xYtZbB9U4uoaGDLN6hLgNtdHmFSMQ/edit?usp=sharing" target="_blank">Word Index</a> |
-          <a href="https://drive.google.com/drive/folders/1-ME4axybNlHX3HGvlLhDZJY7j10AbGaM?usp=sharing" target="_blank">Documents</a> |
-          <a href="/manifestos" target="_blank">Manifesto Project</a> -->
-        </div>  
+  <div id='header'>
+    <div id='title'>Cambridge Keydata Project</div>
+    <div id='subtitle'>Tools uniting computational semantics with conceptual history</div>
+    <!-- <br/> -->
+    <!-- <a href="#" class='popup_about'>About</a> | 
+    <a href="/word">Analyze word</a> | <a href="#" onclick="get_corpus(\'COHA\')">Corpus</a> | <a href="https://docs.google.com/spreadsheets/d/1gH5pO3z-og2Pj3xYtZbB9U4uoaGDLN6hLgNtdHmFSMQ/edit?usp=sharing" target="_blank">Word Index</a> |
+    <a href="https://drive.google.com/drive/folders/1-ME4axybNlHX3HGvlLhDZJY7j10AbGaM?usp=sharing" target="_blank">Documents</a> |
+    <a href="/manifestos" target="_blank">Manifesto Project</a> -->
+  </div>  
 
+  <!-- <hr/> -->
+  <br/>
 
-
-        <!-- <div id='nav'> -->
-
-       
-        
-
-
-          
-        
-        <!-- <br/> -->
-
-        <hr/>
-
-        <h3>Analyze word(s)</h3>
-         <!-- <input id="analyze_word" type="textbox" name="word" value="value,importance,price,value-importance,importance-value"></input> -->
-
-<form id='analyze_word_form'>
-<!-- <textarea id="analyze_word" type="textbox" name="word">value
+  <h3>Analyze word(s)</h3>
+  
+  
+  <textarea id="analyze_word" type="textbox" name="word">value
+price
+merit
+worth
+importance
+excellence
+value-price
+value-merit
+value-importance
+</textarea>
+<!-- 
+    value
+price
+worth
+importance
+merit
+excellence
+</textarea> -->
+    <!-- value
 importance
 price
-value
-value-importance
-importance-value
-price-value
-value-price</textarea> -->
-<!--   <select id="analyze_word" placeholder="Type a word or formula:">
-    <option value="">Select a person...</option>
-    <option value="4">Thomas Edison</option>
-    <option value="1">Nikola</option>
-    <option value="3">Nikola Tesla</option>
-    <option value="5">Arnold Schwarzenegger</option>
-  </select> -->
-<div id="analyze_word_div">
-  <input id="analyze_word" type="text" id="input-tags" class="input-tags demo-default" value=""></div>
-<div id="button_row">
-  <button type="button" class='analyze_button' id='link_expand'>Auto-expand</button>
-  <button type="button" class='analyze_button' id='analyze_word_button'>Analyze</button>
-</div>
-<hr/>
-<h3>Model</h3>
+value-price
+value-importance -->
 
 
-<!-- <a href="#" onclick="expand_words(k=1)">[Auto-expand words]</a> -->
+  <div id="button_row">
+    <div style="float:left; font-size:10px"><button type="button" class='analyze_button' id='link_expand'>Auto-expand</button> by <input type="text" id="expand_n" value="1"></input></div>
 
-<small>Corpus:</small> <select id="corpus">
-  <option value="COHA">COHA</option>
-</select>
+    <button type="button" class='analyze_button' id='analyze_word_button'>Analyze</button>
+  </div>
 
-<select id="period_type" style="display: none;">
-  <option value="bydecade">by 10 years</option>
-  <option value="bythirtyyear">per 30 years</option>
-  <option value="byhalfcentury" selected>per 50 years</option>
-  <option value="bycentury">per 100 years</option>
-</select>
+  <br/>
 
-&nbsp;
+  <h3>Method</h3>
 
-<small>Period:</small> <select id="period">
-<!--     <option value="combined">combined</option>
-    <option value="1810-1840" selected>1810-1840</option>
-    <option value="1870-1900">1870-1900</option>
-    <option value="1900-1930">1900-1930</option>
-    <option value="1930-1960">1930-1960</option>
-    <option value="1960-1990">1810-1840</option>
-    <option value="1990-2020">1990-2020</option> -->
-        <!-- <option value="combined">combined</option> -->
-    <option value="1800-1849" selected>1800-1849</option>
-    <option value="1850-1899">1850-1899</option>
-    <option value="1900-1949">1900-1949</option>
-    <option value="1950-1999">1950-1999</option>
-  </select>
+  <li><a href="#" id='link_simnet' class='method_link'>Semantic Compounds</a></li>
+  <li><a href="#" id='link_umap' class='method_link'>Semantic Maps</a></li>
+
+  <li><a href="#" id='link_ranks' class='method_link'>Changing Associations</a></li>
+  <li><a href="#" id='link_spaces' class='method_link'>Key Spaces</a></li>
+  <li><a href="#" id='link_custom' class='method_link'>Semantic Dimensions</a></li>
+
+  <!-- <hr/> -->
+  <br/>
 
 
+  <div id='sidebar_content'>
+    <div id="command_bar">
+      {%block cmdbar%}{%endblock%}
+    </div>
+    <div id='status'></div>
+  </div>
 
-  <input type="hidden" id="expand_n" value="1"></input>
+  <br/>
 
+  <h3>In model</h3>
+    <select id="model_id">
+      <option value="COHA_byhalfcentury_nonf">COHA (Am. C19-C20 non-fiction, per 50 yr)</option>
+      <option value="COHA_bythirtyyear_nonf" selected>COHA (Am. C19-C20 non-fiction, per 30 yr)</option>
+    </select>
 
-<hr/>
-<h3>Method</h3>
+    <div id="periods">
+    
+      <!-- <br/><input type="checkbox" class="period_input" id="period_combined" name="period_combined" value="combined" /> All (combined) -->
+    </div>
 
-      <li><a href="#" id='link_simnet'>Networks (Semantic Compounds)</a></li>
-      <li><a href="#" id='link_umap'>UMAP (Semantic Mapping)</a></li>
-      <li><a href="#" id='link_ranks'>Ranks (Semantic Flows)</a></li>
-      <li><a href="#" id='link_spaces'>Key Spaces</a></li>
-      <li><a href="#" id='link_custom'>Create custom space</a></li>
-
-
-<hr/>
-
-
-<div id='sidebar_content'>
-<div id="command_bar">
-{%block cmdbar%}
-
-{%endblock%}
-</div>
-</form>
-
-<!-- <hr/> -->
-
-
-<div id='status'></div>
+    <input type="hidden" id="subpage" value=""></input>
 
 </div>
 
 
-</div>
+
 
 <div id='display'>
+  <!-- <center> -->
+    <div id='titles'>
+      <div id='fig_title'></div>
+      <div id='fig_subtitle'></div>
+      <div id='caption'></div>
+    </div>
+    <!-- <center> -->
+      <div id='progressbar'></div>
+    <!-- </center> -->
+    <div id="loading_msg"></div>
+  <!-- </center> -->
 {%block content %}{%endblock %}
 </div>
 
@@ -197,6 +190,7 @@ value-price</textarea> -->
 }, false);
 
   // $(function() { $('#analyze_word').click(); });
+
 
 
 

@@ -1,0 +1,286 @@
+{% extends "base2.html" %}
+
+
+
+
+{%block cmdbar %}
+
+<div id="cmdbar_net" style="display:none">
+
+	<h3>Network of similar words</h3>
+	<li>Link to closest N neighbors: <input type='textbox' id='n_top' value="10" style="width:2em;"></input></li>
+
+</div>
+
+{%endblock%}
+
+
+{% block content %}
+
+<center>
+	<div id="canvas_div">
+		<canvas id="net_canvas" />
+	</div>
+	<div id="umap"></div>
+	<div id="cy"></div>
+</center>
+
+<div id="corpus_desc"></div>
+
+
+{% include "word_desc.html" %}
+{% include "linegraph_v3_spaces.html" %}
+{% include "slopegraph.html" %}
+{% include "linegraph_v3.html" %}
+{% include "field_desc.html" %}
+{% include "custom_spaces.html" %}
+{% include "word_network.html" %}
+
+
+
+
+<script type="text/javascript" src="/static/word.js"></script>
+<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+<script type="text/javascript" src="/static/word-client.js"></script>
+<script type="text/javascript" src="/static/springy.js"></script>
+<script type="text/javascript" src="/static/springyui.js"></script>
+<script type="text/javascript" src="/static/drawing.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+
+
+function clear_viz() {
+	$("#data_view").html("");
+	$('#linegraph_spaces').html("");
+	$('#linegraph').html("");
+	$('#slopegraph').html("");
+	$('#spaces_custom_viz').html("");
+	$('#umap').html("")
+	$('#net_canvas').remove()
+}
+
+
+
+function refresh_analyze_word() {
+	//$('#analyze_word_div').html('<input id="analyze_word" type="text" id="input-tags" class="input-tags demo-default" value="">')
+}
+
+
+function status(data,max_lines=10) {
+	// lines = $('#status').html().split('<br/>')
+	// kept_lines = lines.slice(lines.length-9)
+	// kept_lines.push(data)
+	// new_str = kept_lines.join('<br/>')
+	$('#status').prepend(data+'<br/>'); //+$('#status').html());
+	// $('#status').html(new_str)
+}
+function log(x) {
+	status('<< '+x);
+}
+
+function split_words(_words) {
+	_words=_words.split('\n').join(',')
+	try {
+		_words_l0 = _words.split(',')
+	} catch(TypeError) {
+		return [];
+	}
+	_words_l = []
+	for(wii=0; wii<_words_l0.length; wii++) {
+		wx = _words_l0[wii].trim()
+		if(wx!=undefined & wx!='') {
+			_words_l.push(wx);
+		}
+	}
+	return _words_l;
+}
+
+
+
+function init_selectize() {
+	$('#analyze_word').selectize({
+	  plugins: ['remove_button'],
+	  persist: false,
+	  create: true,
+	  render: {
+	    item: function(data, escape) {
+	      return '<div>' + escape(data.text) + '</div>';
+	    }
+	  },
+	  onChange: function () {
+	        analyze_word();
+	  },
+	 
+	});
+	// var selectize = $('#analyze_word')[0].selectize
+	// options.forEach(function(opt_d) { selectize.addOption(opt_d) })
+	// selectize.refreshOptions()
+	// selectize.close()
+}
+
+
+
+$(function () {
+	var socket = io();
+
+	var log = function(x) { console.log(x); status(x) }
+
+	
+	function analyze_word(subpage='simnet') {
+		opts={}
+		opts['words']=split_words($('#analyze_word').val())
+		opts['n_top']=$('#n_top').val();
+		opts['expand_n']=$('#expand_n').val();
+		opts['model_id']=$('#model_id').val()
+		console.log('opts!',opts)
+
+
+		var view = subpage;
+		clear_viz();
+		$.magnificPopup.close();
+		$('#status').html('')
+		
+
+		console.log('>> analyze_word',opts,subpage)
+		
+		if (view==undefined) { var view=get_cmd(); }
+
+		all_periods = use_all_periods()
+		console.log('view',view)
+		console.log('all_periods',all_periods)
+
+		if (view == "spaces") {
+			$('#custom_spaces').hide();
+			$('#custom_opts_table').hide();
+			get_spaces(word, all_periods=all_periods);
+
+		} else if (view == "ranks") {
+			localStorage.setItem('view','ranks')
+			$('#custom_opts_table').hide();
+			$('#custom_spaces').hide();
+			get_ranks(word,popup=false);
+
+		} else if (view == "custom") {
+			localStorage.setItem('view','custom')
+			$('#custom_opts_table').show();
+			$('#custom_spaces').show();
+			custom_spaces(word,all_periods=all_periods);
+
+		} else if (view == "simnet") {
+			log('drawing network of nearest words');
+			console.log("OPTS>>",opts)
+			socket.emit('mostsimnet', opts)
+
+		} else if (view=='expand') {
+			log('expanding words...')
+			socket.emit('expandwords',opts)
+
+		} else if (view=='umap') {
+			log('umapping words...')
+			socket.emit('get_umap',opts)
+		
+		} else {
+			localStorage.setItem('view','spaces')
+			$('#custom_opts_table').hide();
+			$('#custom_spaces').hide();
+			get_spaces(word,all_periods=all_periods)
+	  }
+
+		// cache_vars();
+		// var url=get_self_url();
+		// console.log('URL??',url);
+		// window.history.pushState({state: "dummyState"}, "Title", url);
+		// $('#footer').html('<hr/><small>[Cite: <a href="'+url+'" target="_blank">'+url+'</a></small>]')
+	}
+	
+	// SOCKET ROUTING
+	socket.on('status', function(data){  status(data); });
+
+	
+	// DRAW MOST SIMILAR
+	socket.on('mostsimnet_resp', function(response_data){
+		log('browser received similarity network data')
+    	draw_net(response_data.data)
+    	$('#fig_title').html(response_data.title)
+	});
+
+	
+	// EXPAND WORDSET
+	socket.on('expandwords_resp', function(new_words){
+		log('browser received expanded wordset')
+		
+		current_val = get_word()
+		new_val=current_val+','+new_words.join(',')
+		//refresh_analyze_word()
+    	$('#analyze_word').val(new_val)
+		//init_selectize()
+	});
+
+
+	// SHOW MOST SIMILAR
+	socket.on('mostsim_resp', function(data){
+		log('browser received similarity data')
+		
+		html=''
+    	for (var word in data) {
+    		html+='<li>'+word+':'+data[word].slice(0,5).join(' ')+'...'
+    	}
+    	$('#feedback').html(html)
+	});
+
+
+	// UMAP
+	socket.on('get_umap_resp', function(data){
+		//console.log('got this reply!',data);
+		log('received response to get_umap()')
+    	plot_dynamic(data,
+		  word_col='label',
+		  y_col = "umap_V2",
+		  x_col = "umap_V1",
+		  t_col = "period",
+		  div_id="umap")
+	});
+
+	// FINALLY: ANALYZE WORD WITH CURRENT OPTIONS
+	analyze_word(subpage='simnet');
+
+	// FINAL JQUERY BEFORE LOADING
+	// $('#analyze_word').val("{{DEFAULT_WORD_STR}}")
+	//init_selectize()
+	$('#link_expand').click(function() { analyze_word(subpage='expand') })
+	$('#link_umap').click(function() { analyze_word(subpage='umap') })
+	$('#link_simnet').click(function() { analyze_word(subpage='simnet') })
+	$('#link_spaces').click(function() { analyze_word(subpage='spaces') })
+	$('#link_custom').click(function() { analyze_word(subpage='custom') })
+	$('#link_ranks').click(function() { analyze_word(subpage='ranks') })
+	$('#model_id').change(function(){ analyze_word();});
+	$('#analyze_word_button').click(function() { analyze_word();});
+	$('#n_top').bind("enterKey",function(e){ analyze_word(); });
+	$('#n_top').keyup(function(e){ if(e.keyCode == 13) { $(this).trigger("enterKey");}});
+});
+
+</script>
+
+{% endblock %}

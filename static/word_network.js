@@ -32,10 +32,12 @@ function draw_net_springy(data) {
 		  // node_d['font']='16px Baskerville, Georgia, Serif'
 		  if (sources.includes(id)) { 
 		  	node_d['font-weight']='bold'
-		  	node_d['font']='20px monospace'
+		  	node_d['font-size']=16
+		  	node_d['font-family']= '"Ubuntu Mono", monospace'
 		   } else {
 		   	node_d['font-weight']='normal' 
-		   	node_d['font']='16px monospace'
+		   	node_d['font-size']=12
+		   	node_d['font-family']= '"Ubuntu Mono", monospace'
 		   }
 		  
 		  if(node_d['label'].slice(0,2)=='V(') {
