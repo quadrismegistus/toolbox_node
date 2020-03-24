@@ -126,21 +126,21 @@ io.on('connection', function(socket){
     var msg='mostsimnet'
     log('starting '+msg+'()')
     // opts['bar'].animate(0.999)
-    opts['progress']=progress
-
+    
     // modifying opts
     opts['average_periods']=true
 
     console.log('mostsimnet_opts: ',opts)
 
+    opts['progress_range']=[0.25,0.5]
   	embed.with_model(opts,log=log,progress=progress).then(function(model) {
       opts['progress_range']=[0.5,0.75]
       most_similar_data = model.get_most_similar(opts) 
-      if(opts['progress']) { opts['progress'](0.5) }
+      
 
       console.log('most_similar_data',most_similar_data)
-      network_data = networks.mostsim2netjson(most_similar_data)
-      if(opts['progress']) { opts['progress'](0.75) }
+      opts['progress_range']=[0.5,0.75]
+      network_data = networks.mostsim2netjson(most_similar_data,progress=progress,opts=opts)
 
       log('finished '+msg+'()')
       // format response

@@ -52,8 +52,6 @@ async function with_model(opts,log=console.log,progress=console.log) {
 
 	//fn_periods = opts2model_fn(opts)
 
-	if(opts['progress']) { opts['progress'](0.1) }
-
 	Model.fn = opts['model_fn']
 	Model.periods=opts['model_periods']
 	Model.opts=opts
@@ -68,8 +66,7 @@ async function with_model(opts,log=console.log,progress=console.log) {
 	log('loading model: '+fn)
 
 	model_vocab = await get_model(fn)
-
-	if(opts['progress']) { opts['progress'](0.25) }
+	Model.progress(0.5,opts)
 
 	Model.M = model_vocab[0]
 	Model.vocab = model_vocab[1]
@@ -78,16 +75,7 @@ async function with_model(opts,log=console.log,progress=console.log) {
 		return this.vocab.length
 	}
 
-	Model.parse_opts = function(opts) {
-		// opts['fn']=opts['model_fn']
-		// fn_periods = opts2model_fn(opts)
-		// opts['fn']=fn_periods['fn']
-		// opts['periods']=fn_periods['periods']
-		return opts
-	}
-
 	Model.get_vector = function(opts) {
-		opts = Model.parse_opts(opts)
 		word_or_formula = opts['word']
 		periods = opts['periods']
 		var words_involved = split_words_only(word_or_formula)
@@ -131,7 +119,6 @@ async function with_model(opts,log=console.log,progress=console.log) {
 	}
 
 	Model.get_vectors = function(opts) {
-		opts = Model.parse_opts(opts)
 		var name2vecs = {}
 		opts['words'].forEach(function(word_or_formula) {
 			opts['word']=word_or_formula
@@ -145,7 +132,6 @@ async function with_model(opts,log=console.log,progress=console.log) {
 	}
 
 	Model.get_most_similar = function(opts) {
-		opts = Model.parse_opts(opts)
 		console.log('most_similar_opts:', opts)
 		Model.log('input split into: ' + opts['words'])
 		opts['name2vec'] = Model.get_vectors(opts)
@@ -153,7 +139,6 @@ async function with_model(opts,log=console.log,progress=console.log) {
 	}
 
 	Model.get_most_similar_by_vector = function(opts) {
-		opts = Model.parse_opts(opts)
 		console.log('OPTS!','get_most_similar_by_vector',opts)
 		var name2vec=opts['name2vec']
 		var n_top=opts['n_top']
@@ -221,8 +206,6 @@ async function with_model(opts,log=console.log,progress=console.log) {
 	Model.get_expanded_wordset = function(opts) {
 		console.log('get_expanded_wordset()',opts)
 
-		//opts = Model.parse_opts(opts)
-		
 		var expand_n=opts['expand_n']
 		if(expand_n==undefined) { expand_n = DEFAULT_EXPAND_N }
     	name2vecs = Model.get_vectors(opts)
@@ -249,6 +232,7 @@ async function with_model(opts,log=console.log,progress=console.log) {
         return matches
 	}
 
+	Model.progress(1.0,opts)
 	return Model
 }
 

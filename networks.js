@@ -1,11 +1,12 @@
 
-function mostsim2netjson(most_similar_data,cutoff=DEFAULT_CSIM_CUTOFF) {
+function mostsim2netjson(most_similar_data,progress=console.log,opts={},cutoff=DEFAULT_CSIM_CUTOFF) {
 	// format data
 	var nodes = []
 	var nodes_sofar = []
 	var links = []
 
-	most_similar_data.forEach(function(data) {
+	most_similar_data.forEach(function(data,i) {
+		progress(i/data.length, opts)
 		word1=data['word']
 		word2=data['word2']
 		csim=data['csim']
