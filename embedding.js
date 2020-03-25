@@ -10,6 +10,13 @@ W2V_MODELS = {
 		"corpus_desc":"COHA (Corpus of Historical American English), Non-Fiction"
 	},
 
+	'COHA_byhalfcentury_nonf_smpl': {
+		"fn": "static/data/db/models/COHA_byhalfcentury_nonf/chained_combined/1800-1999.min=500.run=01.txt",
+		'periods':['1800','1850','1900','1950'],
+		'periods_nice':['1800-1850','1850-1900','1900-1950','1950-2000'],
+		"corpus_desc":"COHA (Corpus of Historical American English), Non-Fiction [Samples]"
+	},
+
 	'COHA_bythirtyyear_nonf': {
 		"fn": "static/data/db/models/COHA_bythirtyyear_nonf_full/chained_combined/1810-2020.min=100.run=01.txt",
 		'periods':['1810','1840','1870','1900','1930','1960','1990'],
@@ -66,7 +73,7 @@ async function with_model(opts,log=console.log,progress=console.log) {
 	log('loading model: '+fn)
 
 	model_vocab = await get_model(fn)
-	Model.progress(0.5,opts)
+	// Model.progress(0.5,opts)
 
 	Model.M = model_vocab[0]
 	Model.vocab = model_vocab[1]
@@ -97,14 +104,26 @@ async function with_model(opts,log=console.log,progress=console.log) {
 				
 				// try an average?
 				word_vecs_to_avg = []
+				word_periods = []
 				console.log('periods2!',this.periods, this.fn)
 				Model.periods.forEach(function(period) {
 					word_period=w+'_'+period
 					wpvecs=this.M.getVector(word_period).values
 					word_vecs_to_avg.push(wpvecs)
+					word_periods.push(word_period)
 				})
-				word_vec_avg = math.add(...word_vecs_to_avg)
-				word2vecs[w]=word_vec_avg
+
+				// if(opts['combine_periods']=='average') {
+					word_vec_avg = math.add(...word_vecs_to_avg)
+					word2vecs[w]=word_vec_avg
+				// } else {
+				// 	word_periods.forEach(function(wperiod,wpi) { 
+				// 		wpvecs=word_vecs_to_avg[wpi]
+				// 		word2vecs[wperiod]=wpvecs
+				// 	})
+				// }
+
+				//console.log('WPVECS!',word2vecs)
 			}
 		});
 
@@ -112,7 +131,7 @@ async function with_model(opts,log=console.log,progress=console.log) {
 
 		// calc formula?
 		formula_str=word_or_formula
-		Model.log('solving formula: '+formula_str)
+		Model.log('locating vector position for: '+formula_str)
 		formula_str_q=formula_str.trim().split('[').join('').split(']').join('');
 		new_vec = solve_vectors(formula_str_q,word2vecs)
 		return new_vec
@@ -120,7 +139,8 @@ async function with_model(opts,log=console.log,progress=console.log) {
 
 	Model.get_vectors = function(opts) {
 		var name2vecs = {}
-		opts['words'].forEach(function(word_or_formula) {
+		opts['words'].forEach(function(word_or_formula,i) {
+			// Model.progress(i/opts['words'].length,opts)
 			opts['word']=word_or_formula
 			try {
 				name2vecs[word_or_formula] = Model.get_vector(opts)
@@ -133,7 +153,12 @@ async function with_model(opts,log=console.log,progress=console.log) {
 
 	Model.get_most_similar = function(opts) {
 		console.log('most_similar_opts:', opts)
-		Model.log('input split into: ' + opts['words'])
+
+		if(opts['combine_periods']=='simultaneous' | opts['combine_periods']=='diachronic') {
+			opts['words']=periodize(opts['words'], opts['periods'])
+		}
+
+		Model.log('input split into: ' + opts['words'].join(', '))
 		opts['name2vec'] = Model.get_vectors(opts)
 		return Model.get_most_similar_by_vector(opts)
 	}
@@ -147,55 +172,81 @@ async function with_model(opts,log=console.log,progress=console.log) {
 
 
 		all_sims = []
+		n_names = 0
+		for(var name in name2vec) { n_names++ }
+		i_names=0
+
+
 		for(var name in name2vec) {
+			// Model.progress(i_names/n_names, opts)
+			i_names++
 			Model.log('getting '+ n_top +' nearest word vectors to: ' + name)
 			vec=name2vec[name]
-			// console.log('vec!',vec)
+			//console.log('vec!',name,vec)
 			sims = this.M.getNearestWords(vec, (n_top+1)*5)
 			// sims = this.M.getNearestWords(vec, (n_top+1)*2)
 			name_sims=[]
 			unique_words=new Set()
 			sims.forEach(function(sim_d) {
+				console.log('sim_d!?',sim_d)
+				if(sim_d['word2']!=undefined) {
 
-				// if the word is not in original dataset (either with or without period), and we still want new words
-				if ( (!(sim_d['word'] in name2vec)) & (!(sim_d['word'].split('_')[0] in name2vec)) & (unique_words.size<n_top)) {
-					// if we either want all periods, or periods wanted includes this one
-					if(periods==undefined | (periods.includes(sim_d['word'].split('_')[1]))) {
-						// start a new dictionary
-						new_sim_d={}
-						new_sim_d['word']=name
-						new_sim_d['word2']=sim_d['word']
-						new_sim_d['csim']=sim_d['dist']
-						new_sim_d['period']=''
-						new_sim_d['period2']=''
-						
-						// set initial word
-						if(periods!=undefined & periods.length==1) {
-							// store word without period
-							new_sim_d['word']=new_sim_d['word'].split('_')[0]
+					worddat1=deperiodize_str(sim_d['word'])
+					worddat2=deperiodize_str(sim_d['word2'])
+					wordname1 = worddat1[0]
+					wordname2 = worddat2[0]
+					period1 = worddat1[1]
+					period2 = worddat2[1]
+
+					// if the word is not in original dataset (either with or without period), and we still want new words
+					if ( (!(sim_d['word'] in name2vec)) & (!(wordname1 in name2vec)) & (unique_words.size<n_top)) {
+						// if we either want all periods, or periods wanted includes this one
+						if(periods==undefined | (periods.includes(period))) {
+							// start a new dictionary
+							new_sim_d={}
+							new_sim_d['id']=sim_d['word']
+							new_sim_d['id2']=sim_d['word2']
+							new_sim_d['word']=wordname1
+							new_sim_d['word2']=wordname2
+							new_sim_d['period']=period1
+							new_sim_d['period2']=period2
+							new_sim_d['csim']=sim_d['dist']
+
+							// new_sim_d['word']=name
+							// new_sim_d['word2']=sim_d['word']
+							// new_sim_d['csim']=sim_d['dist']
+							// new_sim_d['period']=''
+							// new_sim_d['period2']=''
+							
+							// set initial word
+							// if(periods!=undefined & periods.length==1) {
+							// 	// store word without period
+							// 	new_sim_d['word']=new_sim_d['word'].split('_')[0]
+							// }
+
+							// // if averaging periods though...
+							// // if(opts['average_periods']) {
+							// if(opts['combine_periods']=='average') {
+							// 	// deperiodize just in case
+							// 	//console.log('deperiodize:',new_sim_d)
+							// 	word_deperiod=deperiodize_str(new_sim_d['word'])
+							// 	word2_deperiod=deperiodize_str(new_sim_d['word2'])
+							// 	new_sim_d['word']=word_deperiod[0]
+							// 	new_sim_d['word2']=word2_deperiod[0]
+							// 	new_sim_d['period']=word_deperiod[1]
+							// 	new_sim_d['period2']=word2_deperiod[1]
+							// }
+
+							name_sims.push(new_sim_d)
+							if(!unique_words.has(new_sim_d['word2'])) { unique_words.add(new_sim_d['word2']) }
+							// console.log('new_sim_d',new_sim_d)
 						}
-
-						// if averaging periods though...
-						if(opts['average_periods']) {
-							// deperiodize just in case
-							console.log('deperiodize:',new_sim_d)
-							word_deperiod=deperiodize_str(new_sim_d['word'])
-							word2_deperiod=deperiodize_str(new_sim_d['word2'])
-							new_sim_d['word']=word_deperiod[0]
-							new_sim_d['word2']=word2_deperiod[0]
-							new_sim_d['period']=word_deperiod[1]
-							new_sim_d['period2']=word2_deperiod[1]
-						}
-
-						name_sims.push(new_sim_d)
-						if(!unique_words.has(new_sim_d['word2'])) { unique_words.add(new_sim_d['word2']) }
-						// console.log('new_sim_d',new_sim_d)
 					}
 				}
 			})
 
 			// final average
-			if(opts['average_periods']) { name_sims=average_periods(name_sims,val_key='csim',word_key='word2',period_key='period2') }
+			if(opts['combine_periods']=='average') { name_sims=average_periods(name_sims,val_key='csim',word_key='word2',period_key='period2') }
 
 			all_sims.push(...name_sims)
 		}
@@ -222,17 +273,22 @@ async function with_model(opts,log=console.log,progress=console.log) {
 
         var matches = []
         most_similar_data.forEach(function(d) {
-          if(!words_already.includes(d.word2)) {
-            words_already.push(d.word2)
+           // wordx=d.word2
+          // don't include period anymore: should be an option?
+          wordx=d.word2.split('_')[0]
+          if(!words_already.includes(wordx)) {
+          	
+            
+            words_already.push(wordx)
             if(matches.length < expand_n) {
-              matches.push(d.word2)
+              matches.push(wordx)
             }
           }
         })
         return matches
 	}
 
-	Model.progress(1.0,opts)
+	// Model.progress(1.0,opts)
 	return Model
 }
 
@@ -492,6 +548,8 @@ function periodize(words,periods) {
 			})
 		}
 	})
+
+	console.log('PERIODIZED:',words,'-->',word_periods)
 	return word_periods
 }
 

@@ -9,7 +9,6 @@
 
 	<h3>Network of similar words</h3>
 	<li>Link to closest N neighbors: <input type='textbox' id='n_top' value="10" style="width:2em;"></input></li>
-
 	<!-- <input id="periods" multiple> -->
 		<!-- <option value="combined">(combined)</option> -->
 		<!-- added by jquery to follow: -->
@@ -18,7 +17,9 @@
 			<br/><input type="checkbox" class="period_input" id="period_combined" name="period_combined" value="combined" /> All (combined)
 	</li> -->
 
+<br/>
 </div>
+
 
 {%endblock%}
 
@@ -29,8 +30,8 @@
 <!-- PLACEHOLDERS FOR JQUERY TARGETS -->
 <!-- <center> -->
 	<div id="corpus_desc"></div>
-	<div id="canvas_div">
-		<canvas id="net_canvas" />
+	<div id="networks">
+		<!-- <canvas id="net_canvas" /> -->
 	</div>
 	<div id="umap"></div>
 	<div id="cy"></div>
@@ -84,7 +85,7 @@ function status(data,max_lines=10) {
 	// new_str = kept_lines.join('<br/>')
 	setTimeout(function() {
 	//$('#status').prepend(data+'<br/>'); //+$('#status').html());
-	$('#loading_msg').prepend('>> '+data+'<br/>'); //+$('#status').html());
+	$('#loading_msg').append('>> '+data+'<br/>'); //+$('#status').html());
 	}, 100)
 	// $('#status').html(new_str)
 }
@@ -133,6 +134,9 @@ function init_selectize() {
 	// selectize.close()
 }
 
+
+
+
 function reset_periods() {
 	// init page$
 	mdat = get_model_dat()
@@ -151,9 +155,9 @@ function reset_periods() {
 	init_periods.forEach(function(period,i) {
 		period_nice = mdat['periods_nice'][i]
 		// $('#periods').append('<option value="'+period+'">'+period+'</option>')
-		// var is_checked='checked'
-		var is_checked=''
-		if(i<max_period) { is_checked='checked'}
+		var is_checked='checked'
+		// var is_checked=''
+		// if(i<max_period) { is_checked='checked'}
 		$('#periods').append('<li class="li_period"><input type="checkbox" class="period_input" name="period_'+period+'" value="'+period+'" '+is_checked+' /> '+period_nice+'')
 	});
 }
@@ -234,6 +238,9 @@ var bar = new ProgressBar.Line(container, {
   return bar
 }
 
+function progress(n) {
+	// $( "#progressbar" ).progressbar({ value: n*100 });
+}
 
 
 $(function () {
@@ -242,9 +249,17 @@ $(function () {
 
 	var socket = io();
 
+	// $( "#progressbar" ).progressbar( "enable" );
 	$('#progressbar').hide()
-	var bar = make_progress_bar('#progressbar')
-	bar.animate(0.0)
+	$( "#progressbar" ).progressbar({ value: 0.0,classes:{'ui-progressbar':'highlight' } });
+
+
+	// var bar = make_progress_bar('#progressbar')
+	// bar.animate(0.0)
+	//progress(0.0)
+
+		
+	
 
 	var log = function(x) { console.log(x); status('(browser) '+x) }
 
@@ -261,16 +276,48 @@ $(function () {
 		// get nice period
 
 		if(opts['periods'].length>1) { html+='s'}
-		html+=' shown here:'
-		opts['periods'].forEach(function(p) { 
+		// html+=' shown here:'
+		html+=' (n='+opts['periods'].length+'): '
+		opts['periods'].forEach(function(p,_i) { 
 			//html+=' '+p 
 			pi = model_dat['periods'].indexOf(p)
 			pnice=model_dat['periods_nice'][pi]
-			html+=', '+pnice 
+			if(_i>0) { html+=',' }
+			html+=' '+pnice 
 		})
+
+
+		//
+		html+='<br/>Words (n='+opts['words'].length+'): '+opts['words'].slice(0,50).join(', ')
+
 		$('#caption').html(html)
 	}
 
+
+	function make_footer() {
+		title=$('#fig_title').html()
+		footer=''
+		if(title) {
+			footer+='“'+title+'”. '
+		}
+
+		footer+='Cambridge Keydata Project, 2020, '
+		footer+='<a href="'+url+'" target="_blank">'+url+'</a>.'
+
+		var dateObj = new Date();
+		// var month = dateObj.getUTCMonth() + 1; //months from 1-12
+		var day = dateObj.getUTCDate();
+		var year = dateObj.getUTCFullYear();
+		var monthNames = ["January", "February", "March", "April", "May","June","July", "August", "September", "October", "November","December"];
+		var month = monthNames[dateObj.getUTCMonth()]
+
+		newdate = day+' '+ month + ' ' + year
+
+		footer+=' Accessed '+newdate+'.'
+
+		$('#footer').html(footer)
+		return footer
+	}
 
 
 	function get_opts() {
@@ -280,28 +327,48 @@ $(function () {
 		opts['n_top']=$('#n_top').val();
 		opts['expand_n']=$('#expand_n').val();
 		opts['model_id']=get_model_id()
+		opts['combine_periods']=$('input[name="combined_periods_by"]:checked').val()
 		for(var mk in mdat) {
 			opts['model_'+mk]=mdat[mk]
 		}
 		// opts['periods']=$(".period_input").val()
 		opts['periods']=[]
-		$('input:checked').map(function(){opts['periods'].push($(this).val()) })
+		$('.period_input:input:checked').map(function(){opts['periods'].push($(this).val()) })
 
-		console.log('!opts!',opts)
+		opts['subpage']=get_subpage()
+		// console.log('!opts!',opts)
 		return opts
+	}
+
+
+	function get_self_url(opts=undefined) {
+		if(opts==undefined) { opts=get_opts() }
+
+		url_server='http://'+window.location.href.split('/')[2].replace(/\/+$/, "")
+
+		url = url_server
+		url+='?word=' + opts['words'].join(',')
+		url+='&view=' + opts['subpage']
+		url+='&periods=' + opts['periods'].join(',')
+		url+='&model_id=' + opts['model_id']
+		url+='&n_top='+opts['n_top']
+
+		return url
 	}
 	
 	function analyze_word(subpage='simnet') {
-		opts=get_opts()
-		opts['bar']=bar
+		var opts=get_opts()
+		var url=get_self_url(opts)
+		console.log('URL??',url)
+		window.history.pushState({state: "dummyState"}, "Title", url);
 		
 		make_caption()
+		
 
-		console.log('opts!!',opts)
+		// $( "#progressbar" ).progressbar({ value: 0.0 });
+		$( "#progressbar" ).progressbar({ value: false });
 
 
-		$('#progressbar').show()		
-		bar.animate(0.0)
 
 
 		var view = subpage;
@@ -324,11 +391,15 @@ $(function () {
 		} else {
 			_words = opts['words']
 		}
-		_wordstr=_words.join(', ')
+		// _wordstr='“'+_words.join(',” “')+'”'
+		// _wordstr=_wordstr.replace('“et al”','et al')
+		_wordstr='‘'+_words.join('’, ‘')+'’'
+		_wordstr=_wordstr.replace('‘et al’','et al')
 		
 
 		console.log('>> analyze_word',opts,subpage)
-		bar.animate(0.25)
+		// bar.animate(0.25)
+		opts['progress_range']=[0.0,1.0]
 		
 		if (view==undefined) { var view=get_cmd(); }
 
@@ -352,19 +423,25 @@ $(function () {
 
 		
 		} else if (view == "simnet") {
+			$('#progressbar').show()
+			status('loading semantic network for words: '+opts['words'].join(', '))
+
 			$('#link_simnet').removeClass('method_link_disabled')
 			$('#link_simnet').attr('class','method_link_enabled method_link')
 			console.log("OPTS>>",opts)
 			title = 'Semantic Compound of '+_wordstr
-			subtitle = 'Network connecting each of their nearest '+opts['n_top']+' words'
+			subtitle = 'Network connecting each word to its '+opts['n_top']+' nearest words in the model'
+			
 			$('#fig_title').html(title)
 			$('#fig_subtitle').html(subtitle)
 			make_caption()
-			
+			make_footer()
 
-			
-			status('Progress...')
-			status('loading semantic network for words: '+opts['words'].join(', '))
+
+
+			// opts['progress_range']=[0.25,0.9]
+			// progress(0.33)
+			// opts['progress_range']=[0,1.0]
 			socket.emit('mostsimnet', opts)
 
 		} else if (view=='expand') {
@@ -393,13 +470,12 @@ $(function () {
 			get_spaces(word,all_periods=all_periods)
 		}
 
-		bar.animate(0.5)
+		//bar.animate(0.25)
 
 		// cache_vars();
-		// var url=get_self_url();
-		// console.log('URL??',url);
-		// window.history.pushState({state: "dummyState"}, "Title", url);
-		// $('#footer').html('<hr/><small>[Cite: <a href="'+url+'" target="_blank">'+url+'</a></small>]')
+	
+
+
 	}
 	
 	// SOCKET ROUTING
@@ -408,19 +484,28 @@ $(function () {
 	
 	// DRAW MOST SIMILAR
 	socket.on('mostsimnet_resp', function(response_data){
-		bar.animate(0.75)
+		// bar.animate(0.75)
 		log('received similarity network data')
 		log('drawing similarity network data')
     	
-    	draw_net(response_data.data)
-    	bar.animate(1.0)
-
+    	draw_nets(response_data.data)
+    	
     	$('#loading_msg').hide(); //$('#status').show()
-    	$('#progressbar').hide()
+    	// $('#progressbar').progressbar('option', 'value', 0);
     	// $('#fig_title').html(response_data.title)
     	log('completed drawing similarity network')
 
+    	// bar.animate(1.0)
+    	$('#progressbar').hide()
+    	progress(1.0)
 	});
+
+	socket.on('progress',function(progress_float) {
+		console.log('PROGRESS!',progress_float)
+		// bar.animate(progress_float)
+		progress(progress_float)
+		// setTimeout(function() { bar.animate(progress_float) }, Math.random() * 1000 + 250)
+	})
 
 	
 	//  EXPAND WORDSET

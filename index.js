@@ -81,10 +81,20 @@ app.get('/', function(req, res){
 
 http.listen(port, function(){ console.log('listening on *:'+port); });
 
+function norm_val_within_range(domain_val, range=[0.0,1.0], domain=[0.0,1.0]) {
+  dval = (domain_val-domain[0]) / (domain[1]-domain[0])
+  dval_in_range = (dval * (range[1]-range[0])) + range[0]
+  return dval_in_range
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}   
 
 
-
-// SOCKET ROUTING'
+// SOCKET ROUTING
 var num_conn=0
 
 io.on('connection', function(socket){
@@ -92,24 +102,21 @@ io.on('connection', function(socket){
   var log = function(x) { console.log(x); io.to(socket.id).emit('status','(server) '+x); }
   
 
-  log(num_conn.toString() + ' ppl connected')
+  // log(num_conn.toString() + ' ppl connected')
 
   var progress = function(domain_val,opts) { 
-
     range=opts['progress_range']
     domain=opts['progress_domain']
-    
-    if(range==undefiend) { range=[0,1] }
+    if(range==undefined) { range=[0,1] }
     if(domain==undefined) { domain = [0,1] }
-
-    dval = (domain_val-domain[0]) / (domain[1]-domain[0])
-    dval_in_range = (dval-range[0]) / (range[1]-range[0])
-
-    console.log('PROGRESS:',dval_in_range*100,'%'); 
-    io.to(socket.id).emit('progress',dval_in_range);
+    dval_in_range = norm_val_within_range(domain_val,range=range,domain=domain)
+    // console.log('progress!',domain_val,range,domain,'-->',dval_in_range)
+    // console.log('PROGRESS:',dval_in_range*100,'%'); 
+    // io.to(socket.id).emit('progress',dval_in_range);
   }
   
   
+  // Most similar
   socket.on('mostsim', function(opts) {
     var msg='mostsim'
     log('starting '+msg+'()')
@@ -125,27 +132,27 @@ io.on('connection', function(socket){
   socket.on('mostsimnet', function(opts) {
     var msg='mostsimnet'
     log('starting '+msg+'()')
-    // opts['bar'].animate(0.999)
-    
-    // modifying opts
-    opts['average_periods']=true
 
     console.log('mostsimnet_opts: ',opts)
-
-    opts['progress_range']=[0.25,0.5]
-  	embed.with_model(opts,log=log,progress=progress).then(function(model) {
-      opts['progress_range']=[0.5,0.75]
+    progress(0.25, opts)
+    embed.with_model(opts,log=log).then(function(model) {
+      // opts['progress_range']=[0.5,0.75]
+      progress(0.5, opts)
       most_similar_data = model.get_most_similar(opts) 
+      progress(0.75, opts)
       
 
-      console.log('most_similar_data',most_similar_data)
-      opts['progress_range']=[0.5,0.75]
-      network_data = networks.mostsim2netjson(most_similar_data,progress=progress,opts=opts)
+      //console.log('most_similar_data',most_similar_data)
+      // opts['progress_range']=[0.75,0.9]
+      // network_data = networks.sims2net(most_similar_data,opts)
+      networks_data = networks.sims2net(most_similar_data,opts)
+      progress(0.9, opts)
 
       log('finished '+msg+'()')
       // format response
-      response_data = {'data':network_data}
+      response_data = {'data':networks_data}
       io.to(socket.id).emit(msg+'_resp', response_data)
+      progress(1.0,opts)
     })
   })
 

@@ -25,7 +25,7 @@ function cache_vars() {
 
 
 
-function get_self_url(starter='/word/') {
+function get_self_url0(starter='/word/') {
 	cmd2keys={
 		'spaces':['points'],
 		'custom':['points','x_vec_str','x_vec','y_vec_str','y_vec'],
