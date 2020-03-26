@@ -69,6 +69,7 @@ function clear_viz() {
 	$('#spaces_custom_viz').html("");
 	$('#umap').html("")
 	$('#net_canvas').remove()
+	$('#networks').html("")
 }
 
 
@@ -241,6 +242,13 @@ var bar = new ProgressBar.Line(container, {
 function progress(n) {
 	// $( "#progressbar" ).progressbar({ value: n*100 });
 }
+
+function netswitch(div_id) { 
+
+	$('.net_div').hide()
+	$('#'+div_id).show();
+}
+
 
 
 $(function () {

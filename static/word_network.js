@@ -27,100 +27,131 @@ function draw_net(data) {
 
 
 function draw_nets(data, div_id='networks', div_net_id='net_canvas', div_net_class='net_div') {
+	console.log('draw_nets::',data)
 	// $('#cmdbar_net').show();
-	$('#'+div_id).html('<center>')
-	data.forEach(function(net,i) {  
-		console.log('NET:',i,net)
+	$('#'+div_id).html('')
+	net_titles=[]
+	periods=[]
+	div_ids=[]
+	data.forEach(function(netd,i) {  
+		period=netd['period']
+		net=netd['netdata']
 
+		// console.log('NET:',i,net)
+
+		if(data.length>1) { nettitle='<h3>Network: '+period+'</h3>' } else { nettitle='' }
+		nettitle=''
+		periods.push(period)
+		if(nettitle!='') { net_titles.push(nettitle) }
 
 		this_net_div_id  = div_net_id + (i+1)
+		div_ids.push(this_net_div_id)
+
 		
-		$('#'+div_id).append('<canvas id="'+this_net_div_id+'" class="'+div_net_class+'" min-width="600px" width="900px" height="750px" />')
+		// newdivhtml='<div id="'+this_net_div_id+'" class="'+div_net_class+'"><h3>Network: '+period+'</h3> '+nettitle+'</div>'
+		newdivhtml='<div id="'+this_net_div_id+'" class="'+div_net_class+'">'+nettitle+'</div>'
+		$('#'+div_id).append(newdivhtml)
 		
 		draw_net_springy(net, this_net_div_id)
 		
-		//if(i>0) { $('#'+this_net_div_id).hide() }
+		if(i>0) { $('#'+this_net_div_id).hide() }
 	})
-	$('#'+div_id).append('</center>')
+
+	if(data.length>1) { 
+		meta_title = []
+		periods.forEach(function(p,i) {
+			pdiv = div_ids[i]
+			pstr='<a href="javascript:void" onclick="netswitch(\''+pdiv+'\')">'+p+'</a>'
+			meta_title.push(pstr)
+		})
+		meta_title=meta_title.join(' | ')
+		$('#'+div_id).prepend('<h3>Periods: '+meta_title+'</h3>')
+	}
 }
 
 
 function draw_net_springy(data, div_id, div_class='net_canvas') {
+	var canvas_id=div_id+'_canvas'
+	$('#'+div_id).append('<canvas id="'+canvas_id+'" class="'+div_class+'" min-width="600px" width="900px" height="750px" />')
 
-	// make a new graph
-		var graph = new Springy.Graph();
+	// make a new Graph
+	var graph = new Springy.Graph()
 
-		// which nodes are sources
-		sources=[]
-		data.links.forEach(function(link_d) {
-			if(!sources.includes(link_d.source)) { sources.push(link_d.source); }
-		});
-		console.log(sources)
+	// which nodes are sources
+	sources=[]
+	data.links.forEach(function(link_d) {
+		if(!sources.includes(link_d.source)) { sources.push(link_d.source); }
+	});
+	console.log(sources)
 
-		id2node={}
-		periods_sofar=new Set()
-		period2color={}
+	id2node={}
+	periods_sofar=new Set()
+	period2color={}
 
-		data.nodes.sort(function(d1,d2) { 
-			p1=d1.id.split('_')[1]
-			p2=d2.id.split('_')[1]
-			if(p1<p2) { return -1 }
-			if(p1>p2) { return 1 }
-			return 0
-		})
+	data.nodes.sort(function(d1,d2) { 
+		p1=d1.id.split('_')[1]
+		p2=d2.id.split('_')[1]
+		if(p1<p2) { return -1 }
+		if(p1>p2) { return 1 }
+		return 0
+	})
+	data.nodes.forEach(function(nd) { periods_sofar.add(nd.period) })
 
-		font_default = '14px Monaco, Courier, Georgia, Garamond, Verdana'    //"Ubuntu Mono", monospace'
-		data.nodes.forEach(function(node_d) {
-		  id=node_d['id']
-		  node_d['label']=node_d['id'][0].toUpperCase() + node_d['id'].slice(1)
-		  node_d['period']=node_d['label'].split('_')[1]
-		  period = node_d['period']
+	font_default = '14px Monaco, monospace' //, Courier, Georgia, Garamond, Verdana'    //"Ubuntu Mono", monospace'
+	data.nodes.forEach(function(node_d) {
+	  id=node_d['id']
+	  node_d['label']=node_d['word'][0].toUpperCase() + node_d['word'].slice(1) //node_d['id'][0].toUpperCase() + node_d['id'].slice(1)
+	  // node_d['label']=node_d['id'][0].toUpperCase() + node_d['id'].slice(1)
+	  // node_d['id'][0].toUpperCase() + node_d['id'].slice(1)
+	  // node_d['period']=node_d['label'].split('_')[1]
+	  period = node_d['period']
 
-		  if(!(period in period2color) & (period!=undefined)) { period2color[period] = COLORS[Object.keys(period2color).length] }
+	  if(!(period in period2color) & (period!=undefined)) { period2color[period] = COLORS[Object.keys(period2color).length] }
 
-		  periods_sofar.add(node_d['period'])
-		  node_d['font']=font_default
-		  node_d['color']='black'
+	  periods_sofar.add(node_d['period'])
+	  node_d['font']=font_default
+	  node_d['color']='black'
 
-		  // console.log('node_d!!',periods_sofar,periods_sofar.size,node_d)
+	  console.log('node_d!!',periods_sofar,periods_sofar.size,node_d)
 
-		  if(node_d['period']!=undefined) {
-		  	// if(!(node_d['period'] in period2color)) {
-		  	// 	period2color[node_d['period']] = period2color[node_d['period']]
-		  	// }
-		  	node_d['label']=node_d['label'].split('_')[0]
-		  	node_d['color'] = period2color[period]
-		  } else if (sources.includes(id)) {
-		  	// node_d['color'] = '#1B4F72'
-		  } else {
-		  	node_d['font'] = '12' + font_default.slice(2)
-		  }
+	  if((node_d['period']!=undefined) & (periods_sofar.size>1)) {
+	  	// if(!(node_d['period'] in period2color)) {
+	  	// 	period2color[node_d['period']] = period2color[node_d['period']]
+	  	// }
+	  	node_d['label']=node_d['label'].split('_')[0]
+	  	node_d['color'] = period2color[period]
+	  } else if (sources.includes(id)) {
+	  	// node_d['color'] = '#1B4F72'
+	  } else {
+	  	node_d['font'] = '12' + font_default.slice(2)
+	  }
 
-		  id2node[id]=graph.newNode(node_d);
-		});
+	  id2node[id]=graph.newNode(node_d);
+	});
 
-		data.links.forEach(function(link_d) {
-		  node1=id2node[link_d['source']];
-		  node2=id2node[link_d['target']];
-		  // edge_d={'stroke-width':10,'color':'red','opacity':0.25, 'size':10}
-		  graph.newEdge(node1, node2, {'weight':link_d['weight']*2});
-		});	
-		$('#'+div_id).html('')
-		// $('#net_canvas').springy({ graph: graph,
-		// 	nodeSelected: function(node){
-  //    		 console.log('Node selected: ' + JSON.stringify(node.data));
-  //   		}
+	data.links.forEach(function(link_d) {
+	  node1=id2node[link_d['source']];
+	  node2=id2node[link_d['target']];
+	  // edge_d={'stroke-width':10,'color':'red','opacity':0.25, 'size':10}
+	  graph.newEdge(node1, node2, {'weight':link_d['weight']*2});
+	});	
+	
+	// $('#net_canvas').springy({ graph: graph,
+	// 	nodeSelected: function(node){
+//    		 console.log('Node selected: ' + JSON.stringify(node.data));
+//   		}
 
-		// });
+	// });
 
-		$(function(){
-		  var springy = window.springy = $('#'+div_id).springy({
-		    graph: graph,
-		    nodeSelected: function(node){
-		      console.log('Node selected: ' + JSON.stringify(node.data));
-		    }
-		  });
-		});
+	$(function(){
+		console.log('canvas_id',canvas_id,'????')
+	  var springy = window.springy = $('#'+canvas_id).springy({
+	    graph: graph,
+	    nodeSelected: function(node){
+	      console.log('Node selected: ' + JSON.stringify(node.data));
+	    }
+	  });
+	});
 }
 
 

@@ -21,11 +21,13 @@ function sims2net(most_similar_data,opts={}) {
 			period_data = most_similar_data_by_period[period]
 			console.log('period!!',period,period_data)
 			net = mostsim2netjson(period_data,opts=opts)
-			nets.push(net)
+			netd = {'period':period, 'netdata':net}
+			nets.push(netd)
 		}
 	} else {
 		net = mostsim2netjson(most_similar_data,opts=opts)
-		nets.push(net)
+		netd = {'period':undefined, 'netdata':net}
+		nets.push(netd)
 	}
 
 	console.log('NETSSS:',nets)
@@ -43,17 +45,22 @@ function mostsim2netjson(most_similar_data,opts={}) {
 	most_similar_data.forEach(function(data,i) {
 		// console.log(i,most_similar_data.length)
 		// progress(i/most_similar_data.length, opts)
-		word1=data['word']
-		word2=data['word2']
+		node1={'id':data['id'], 'word':data['word'], 'period':data['period']}
+		node2={'id':data['id2'], 'word':data['word2'], 'period':data['period2']}
+		word1=data['id']
+		word2=data['id2']
 		csim=data['csim']
 
+		// console.log('ndoeword',word1,word2,node1,node2)
+
 		if (cutoff==undefined | csim>=cutoff) {
-			maybe_new_nodes = [word1,word2]
-			maybe_new_nodes.forEach(function(w) { 
-			  if(!(nodes_sofar.includes(w))) {
-					nodes_sofar.push(w)
-					new_node = {'id':w}
-					nodes.push(new_node)
+			maybe_new_nodes = [[word1,node1], [word2,node2] ]
+			maybe_new_nodes.forEach(function(dat) { 
+				_word=dat[0]
+				_node=dat[1]
+			  	if(!(nodes_sofar.includes(_word))) {
+					nodes_sofar.push(_word)
+					nodes.push(_node)
 				}
 			});
 

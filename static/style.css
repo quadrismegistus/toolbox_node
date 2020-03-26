@@ -117,7 +117,7 @@ color:red;
   position: relative;*/
 
   /*line*/
-  margin: 20px;
+  /*margin: 20px;*/
   width: 600px;
   height: 8px;
   position: relative;
@@ -477,7 +477,7 @@ input { font-family:"Droid Sans"; margin:0; }
 
    #display { 
     margin: 0; padding:0; 
-    margin-left: 325px;
+    margin-left: 350px;
     /*border:1px solid red;*/
    /*#display { padding-left: 150px; margin-top: 5px}*/
  }
@@ -504,7 +504,7 @@ input { font-family:"Droid Sans"; margin:0; }
   margin-top: 6px;
   text-align:left;
   margin-bottom:35px;
-  margin-left:10px;
+  
 }
 
 
@@ -524,7 +524,7 @@ input { font-family:"Droid Sans"; margin:0; }
 
 #loading_msg {
   /*margin-top:100px; height:400px; margin-left:10px;*/
-  margin-top:25px; margin-left:10px;
+  margin-top:25px;
   color:gray;
 
   /*text-decoration: underline;*/
