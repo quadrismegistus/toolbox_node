@@ -102,6 +102,12 @@ io.on('connection', function(socket){
   var log = function(x) { console.log(x); io.to(socket.id).emit('status','(server) '+x); }
   
 
+  // embed.with_model(opts,log=log).then(function(model) {
+  //     opts['word']=['value_1950-importance_1950']
+  //     model.get_vector(opts)
+  //     throw 'testing!' 
+  // })
+
   // log(num_conn.toString() + ' ppl connected')
 
   var progress = function(domain_val,opts) { 
@@ -129,31 +135,38 @@ io.on('connection', function(socket){
 
   // Draw most simialar
   
-  socket.on('mostsimnet', function(opts) {
+  socket.on('mostsimnet', async function(opts) {
     var msg='mostsimnet'
     log('starting '+msg+'()')
 
     console.log('mostsimnet_opts: ',opts)
     progress(0.25, opts)
-    embed.with_model(opts,log=log).then(function(model) {
-      // opts['progress_range']=[0.5,0.75]
-      progress(0.5, opts)
-      most_similar_data = model.get_most_similar(opts) 
-      progress(0.75, opts)
-      
 
-      //console.log('most_similar_data',most_similar_data)
-      // opts['progress_range']=[0.75,0.9]
-      // network_data = networks.sims2net(most_similar_data,opts)
-      networks_data = networks.sims2net(most_similar_data,opts)
-      progress(0.9, opts)
+    model = await embed.with_model(opts,log=log)
 
-      log('finished '+msg+'()')
-      // format response
-      response_data = {'data':networks_data}
-      io.to(socket.id).emit(msg+'_resp', response_data)
-      progress(1.0,opts)
-    })
+    //await model.build_vecdb(opts)
+    //stop
+
+    // opts['progress_range']=[0.5,0.75]
+    progress(0.5, opts)
+    most_similar_data = await model.get_most_similar(opts)
+    progress(0.75, opts)
+    console.log('most_similar_data',most_similar_data)
+    //throw 'stop'
+    
+
+    //console.log('most_similar_data',most_similar_data)
+    // opts['progress_range']=[0.75,0.9]
+    // network_data = networks.sims2net(most_similar_data,opts)
+    networks_data = networks.sims2net(most_similar_data,opts)
+    progress(0.9, opts)
+
+    log('finished '+msg+'()')
+    // format response
+    response_data = {'data':networks_data}
+    io.to(socket.id).emit(msg+'_resp', response_data)
+    progress(1.0,opts)
+    // })
   })
 
 
@@ -201,5 +214,5 @@ io.on('connection', function(socket){
 
 
 
-db=require('./db.js')
-db.test()
+// db=require('./db.js')
+// db.test()

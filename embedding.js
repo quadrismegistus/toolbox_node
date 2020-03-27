@@ -1,6 +1,7 @@
 // Constants
 DEFAULT_CORPUS = 'COHA'
 DEFAULT_PERIOD_TYPE = 'byhalfcentury'
+DEFAULT_N_STORE=100
 
 W2V_MODELS = {
 	'COHA_byhalfcentury_nonf': {
@@ -39,11 +40,16 @@ const path = require('path');
 // var DataFrame = require('dataframe-js').DataFrame;
 
 // load fields and variables
-const fs = require('fs');
+const fs = require('fs')
+// const readline = require('readline')
+var lineReader = require('line-reader')
 let field2words = JSON.parse(fs.readFileSync('static/data/db/fields/_id2words.json')).data
 let vec_names = JSON.parse(fs.readFileSync('static/data/db/fields/_vecids.json')).data
 let content_words = JSON.parse(fs.readFileSync('static/data/db/misc/content_words.json')).data
 
+// db import
+const DB=require('./db.js')
+const get_csim = require( 'compute-cosine-similarity' );
 
 // global variables for storage
 var fn2M = {}
@@ -61,6 +67,7 @@ async function with_model(opts,log=console.log,progress=console.log) {
 
 	Model.fn = opts['model_fn']
 	Model.periods=opts['model_periods']
+	Model.model_id=opts['model_id']
 	Model.opts=opts
 	fn=Model.fn
 	periods=Model.periods
@@ -73,85 +80,142 @@ async function with_model(opts,log=console.log,progress=console.log) {
 	log('loading model: '+fn)
 
 	model_vocab = await get_model(fn)
+	
 	// Model.progress(0.5,opts)
 
 	Model.M = model_vocab[0]
 	Model.vocab = model_vocab[1]
+	Model.orig_vocab = await get_orig_vocab(fn)
+	// Model.db = DB.get_vecdb(opts['model_id'])
+
 
 	Model.num_words = function() {
 		return this.vocab.length
 	}
 
-	Model.get_vector = function(opts) {
-		word_or_formula = opts['word']
-		periods = opts['periods']
-		var words_involved = split_words_only(word_or_formula)
+	Model.get_db = function() { return DB.get_vecdb(this.model_id) }
+	Model.get_distdb = function() { return DB.get_distdb(this.model_id) }
 
-		// console.log('getting vector',word_or_formula,'in model',this.M)
 
-		var word2vecs = {}
-		words_involved.forEach(function(w) { 
-			// console.log('getting vectors for: '+w+'...')
-			// Model.log('getting vectors for: "'+w+'"...')
-			try { 
-				vecs = this.M.getVector(w).values
-				// console.log(vecs)
-				word2vecs[w]=vecs
-				// console.log(w,vecs[0])
-				// console.log('vecs',vecs)
-			} catch(TypeError) { 
-				console.log('err!',TypeError)
-				
-				// try an average?
-				word_vecs_to_avg = []
-				word_periods = []
-				console.log('periods2!',this.periods, this.fn)
-				Model.periods.forEach(function(period) {
-					word_period=w+'_'+period
-					wpvecs=this.M.getVector(word_period).values
-					word_vecs_to_avg.push(wpvecs)
-					word_periods.push(word_period)
-				})
+	Model.build_vecdb = async function(opts) {
+		db=Model.get_db()
+		// distdb=Model.get_distdb()
+		all_keys=[]
+		this.orig_vocab.forEach(async function(word,i) {
+			console.log(i,word)
+			db_key=word
+			all_keys.push(db_key)
+			db_val=this.M.getVector(word).values
+			// db_val2=this.M.mostSimilar(word, DEFAULT_N_STORE)
 
-				// if(opts['combine_periods']=='average') {
-					word_vec_avg = math.add(...word_vecs_to_avg)
-					word2vecs[w]=word_vec_avg
-				// } else {
-				// 	word_periods.forEach(function(wperiod,wpi) { 
-				// 		wpvecs=word_vecs_to_avg[wpi]
-				// 		word2vecs[wperiod]=wpvecs
-				// 	})
-				// }
-
-				//console.log('WPVECS!',word2vecs)
-			}
-		});
-
-		// console.log('word2vecs',word2vecs)
-
-		// calc formula?
-		formula_str=word_or_formula
-		Model.log('locating vector position for: '+formula_str)
-		formula_str_q=formula_str.trim().split('[').join('').split(']').join('');
-		new_vec = solve_vectors(formula_str_q,word2vecs)
-		return new_vec
+			// console.log('db_key',db_key)
+			// console.log('db_val',db_val)
+			await db.set(db_key,db_val)
+			// await distdb.set(db_key,JSON.stringify(db_val2))
+			// console.log('')
+		})
+		await db.set('_keys',all_keys)
+		// db.get('virtue_1800').then(function(x) { console.log('RESULT:',x) })
+		// throw 1
 	}
 
-	Model.get_vectors = function(opts) {
-		var name2vecs = {}
-		opts['words'].forEach(function(word_or_formula,i) {
-			// Model.progress(i/opts['words'].length,opts)
-			opts['word']=word_or_formula
-			try {
-				name2vecs[word_or_formula] = Model.get_vector(opts)
-			} catch(err) {
-				console.log('err getting vector for!',word_or_formula)
+	Model.get_vector = async function(word_or_formula, opts={}) {
+		// console.log('get_vector_opts',opts['word'])
+		db=Model.get_db()
+		// word_or_formula = opts['word']
+		console.log('get_vector_opts',opts)
+		formula_str=word_or_formula
+		Model.log('locating vector position for: '+formula_str)
+		formula_str_q=formula_str.trim().split('[').join('').split(']').join('')
+		
+
+		cached_formula_vec=await db.get(formula_str_q)
+		// console.log('cached_formula_vec:::',opts['word'],formula_str_q,cached_formula_vec)
+
+		if(cached_formula_vec!=undefined) {  return cached_formula_vec }
+
+
+		var words_involved = split_words_only(word_or_formula)
+		var word2vecs = {}
+		var uncached_vecs=[]
+		// console.log('words_involved',words_involved)
+
+		for(wi=0; wi<words_involved.length; wi++) {
+			w=words_involved[wi]
+			cached_word_vec = await db.get(w)
+			//console.log('cached_word_vec!',w,cached_word_vec)
+			if(cached_word_vec!=undefined) {
+				word2vecs[w]=cached_word_vec
+				// console.log('word2vecs!?!?!',w,word2vecs)
+			} else {
+				// still no cache?
+				// maybe it has no period and we need to periodize
+				// try an average?
+				
+				word_vecs_to_avg = []
+				//console.log('w???',w,words_involved)
+				w_periodized = periodize([w],opts['periods'])
+				//console.log('w_periodized',w_periodized)
+				
+				for(wpi=0; wpi<w_periodized.length; wpi++) {
+					word_period=w_periodized[wpi]
+					console.log(word_period,'!?')
+					// try cache one last time
+					cached_word_period_vec = await db.get(word_period)
+					//console.log('cached_word_period_vec',word_period,cached_word_period_vec,'!?')
+					if(cached_word_period_vec!=undefined) {
+						word_vecs_to_avg.push(cached_word_period_vec)
+					}
+				}
+
+				console.log('w?',word_vecs_to_avg)
+				word_vec_avg = math.add(...word_vecs_to_avg)
+				word2vecs[w]=word_vec_avg
 			}
-		});
+		}
+
+		// calc formula?
+		// console.log('word2vecs',word2vecs)
+		vec_res = solve_vectors(formula_str_q,word2vecs)
+		// console.log('vec_res!',formula_str_q,vec_res)
+		// vec_res = await formula_promise
+		return vec_res
+	}
+
+
+
+	Model.get_vectors = async function(opts) {
+		var name2vecs = {}
+		words=opts['words']
+		for(wii=0; wii<words.length; wii++) {
+			word_or_formula=words[wii]
+			// opts['word']=word_or_formula
+			console.log('WORDDDD',word_or_formula,wii,words)
+			// try {
+			name2vecs[word_or_formula] = await Model.get_vector(word_or_formula, opts)
+			console.log('got_vector',word_or_formula,name2vecs[word_or_formula])
+			// } catch(err) {
+				// console.log('err getting vector for!',word_or_formula,err)
+			// }
+		}
+
+
+		// opts['words'].forEach(async function(word_or_formula,i) {
+		// 	// Model.progress(i/opts['words'].length,opts)
+		// 	opts['word']=word_or_formula
+		// 	try {
+		// 		name2vecs[word_or_formula] = await Model.get_vector(opts)
+
+		// 		console.log('got_vector',word_or_formula,name2vecs[word_or_formula])
+		// 	} catch(err) {
+		// 		console.log('err getting vector for!',word_or_formula,err)
+		// 	}
+		// });
+		console.log('get_vectors returning name2vecs:',name2vecs)
 		return name2vecs
 	}
 
-	Model.get_most_similar = function(opts) {
+	Model.get_most_similar = async function(opts) {
 		console.log('most_similar_opts:', opts)
 
 		if(opts['combine_periods']=='simultaneous' | opts['combine_periods']=='diachronic') {
@@ -159,34 +223,189 @@ async function with_model(opts,log=console.log,progress=console.log) {
 		}
 
 		Model.log('input split into: ' + opts['words'].join(', '))
-		opts['name2vec'] = Model.get_vectors(opts)
-		return Model.get_most_similar_by_vector(opts)
+		name2vec = await Model.get_vectors(opts)
+		// console.log('FINAL NAME2VEC',name2vec)
+		
+		most_similar_data = await Model.get_most_similar_by_vector(name2vec,opts)
+		return most_similar_data
 	}
 
-	Model.get_most_similar_by_vector = function(opts) {
-		console.log('OPTS!','get_most_similar_by_vector',opts)
-		var name2vec=opts['name2vec']
-		var n_top=opts['n_top']
-		var periods = opts['periods']
+
+	Model.get_most_similar2 = async function(opts) {
+		console.log('most_similar_opts:', opts)
+		n_top=opts['n_top']
 		if(n_top==undefined) { n_top = DEFAULT_N_SIMILAR }
 
+		// periodize?
+		if(opts['combine_periods']=='simultaneous' | opts['combine_periods']=='diachronic') {
+			opts['words']=periodize(opts['words'], opts['periods'])
+		}
+		Model.log('input split into: ' + opts['words'].join(', '))
+
+		// first check dist db
+		distdb=Model.get_distdb()
+		most_similar_data = []
+		words_with_cached_dists = []
+		words_with_uncached_dists = []
+		words=opts['words']
+
+		// already have cache for?
+
+		for(_i=0; _i<words.length; _i++) {
+			w=words[_i]
+			console.log(_i,w)
+			distcache = await distdb.get(w)
+			if(distcache) {
+				words_with_cached_dists.push(w)
+				distcache=JSON.parse(distcache)
+				simdat=distcache.slice(0,n_top)
+				most_similar_data.push(simdat)
+			} else {
+				words_with_uncached_dists.push(w)
+			}
+		}
+
+		Model.log('found cached distance results for: '+words_with_cached_dists.join(', '))
+		Model.log('did not find cached distance results for: '+words_with_uncached_dists.join(', '))
+		
+		opts['words']=words_with_uncached_dists
+		name2vec = await Model.get_vectors(opts)
+		// console.log('FINAL NAME2VEC',name2vec)
+		
+		// add uncached results
+		most_similar_data.push(...await Model.get_most_similar_by_vector(name2vec,opts))
+
+		return most_similar_data
+	}
+
+
+
+
+	Model.get_current_vec_names = async function (opts={}) {
+		return await this.get_db().get('_keys')
+	}
+
+
+	Model.get_nearest_words_with_db = async function(name2vec, n_top=25, opts={}, n_store=1000) {
+		vecdb = Model.get_vecdb()
+
+	}
+
+
+
+	Model.get_nearest_words_with_db0 = async function(name2vec, n_top=25, opts={}, n_store=1000) {
+		db=Model.get_db()
+		
+		vecnames = await Model.get_current_vec_names(opts)
+		console.log('vecnames!',vecnames)
+
+		// closest_so_far = []
+
+		var closest_so_far={}
+		for (var vn in name2vec) { closest_so_far[vn]=[] }
+
+		for(vci=0; vci<vecnames.length; vci++) {
+			if(vci%1000 == 0) { console.log(vci,vecnames[vci],'...') }
+			for(var vecname1 in name2vec) {
+				vec1=name2vec[vecname1]
+
+				vecname2=vecnames[vci]
+				// console.log(vci,vecname2,vecname1,'...')
+				// vec2=await Model.get_vector(vecname2,opts=opts)
+				
+				vec2=await db.get(vecname2)
+
+				try {
+					dist=1-get_csim(vec1,vec2)
+					closest_so_far[vecname1].push([vecname2,dist])
+				} catch(err) {
+					console.log('ERROR::',err)					
+					console.log('vec1',vecname1,vec1)
+					console.log('vec2',vecname2,vec2)
+					console.log('dist',dist,'\n')
+				}
+				
+
+				// vecname2dists
+
+				// if(closest_so_far.length > n_top) {
+				// if(closest_so_far[vecname1].length > n_store) {
+				// 	closest_so_far[vecname1].sort(function(a, b) { return a[1] - b[1]; })	
+				// 	closest_so_far[vecname1] = closest_so_far[vecname1].slice(0,n_top)
+				// }
+			}
+		}
+
+		sims=[]
+		// distdb=Model.get_distdb()
+		for(var vecname in closest_so_far) {
+			// console.log('>>VEC',vecname,'...')
+			vecdists=closest_so_far[vecname]
+			vecdists.sort(function(a, b) { return a[1] - b[1] })
+			vecdists=vecdists.slice(0,n_top)
+
+
+			// distdb.set(vecname, JSON.stringify(vecdists))
+			for(vii=0; vii<n_top; vii++) {
+				vecname2=vecdists[vii][0]
+				dist=vecdists[vii][1]
+				new_sim_d={}
+				new_sim_d['id']=id1=vecname
+				new_sim_d['id2']=id2=vecname2
+				worddat1=deperiodize_str(id1)
+				worddat2=deperiodize_str(id2)
+				new_sim_d['word'] = wordname1 = worddat1[0]
+				new_sim_d['word2'] =wordname2 = worddat2[0]
+				new_sim_d['period'] = period1 = worddat1[1]
+				new_sim_d['period2'] = period2 = worddat2[1]
+				new_sim_d['csim']=dist
+				sims.push(new_sim_d)
+			}
+		}
+		return sims
+	}
+
+
+
+	Model.get_most_similar_by_vector = async function(name2vec,opts={}) {
+		console.log('OPTS!','get_most_similar_by_vector',opts)
+		var name2vec=name2vec
+		var n_top=opts['n_top']
+		var periods=opts['periods']
+		if(n_top==undefined) { n_top = DEFAULT_N_SIMILAR }
 
 		all_sims = []
 		n_names = 0
 		for(var name in name2vec) { n_names++ }
 		i_names=0
 
+		sims = await Model.get_nearest_words_with_db(name2vec, n_top=n_top, opts=opts)
+
+
 
 		for(var name in name2vec) {
 			// Model.progress(i_names/n_names, opts)
 			i_names++
-			Model.log('getting '+ n_top +' nearest word vectors to: ' + name)
-			vec=name2vec[name]
-			//console.log('vec!',name,vec)
-			sims = this.M.getNearestWords(vec, (n_top+1)*5)
-			// sims = this.M.getNearestWords(vec, (n_top+1)*2)
 			name_sims=[]
 			unique_words=new Set()
+			Model.log('getting '+ n_top +' nearest word vectors to: ' + name)
+
+
+			// first check distdb
+			// csim_cache = distdb.get(name)
+			// if(csim_cache!=undefined) {
+			// 	return 
+			// }
+
+
+			vec=name2vec[name]
+			//console.log('vec!',name,vec)
+			// sims = this.M.getNearestWords(vec, (n_top+1)*5)
+			sims = await Model.get_nearest_words_with_db(vec, opts=opts)
+			console.log('SIMS:',sims)
+			
+			// sims = this.M.getNearestWords(vec, (n_top+1)*2)
+			
 			sims.forEach(function(sim_d) {
 				new_sim_d={}
 				new_sim_d['id']=id1=name
@@ -230,38 +449,105 @@ async function with_model(opts,log=console.log,progress=console.log) {
 		return all_sims
 	}
 
+	// Model.get_most_similar_by_vector = function(opts) {
+	// 	console.log('OPTS!','get_most_similar_by_vector',opts)
+	// 	var name2vec=opts['name2vec']
+	// 	var n_top=opts['n_top']
+	// 	var periods = opts['periods']
+	// 	if(n_top==undefined) { n_top = DEFAULT_N_SIMILAR }
+
+
+	// 	all_sims = []
+	// 	n_names = 0
+	// 	for(var name in name2vec) { n_names++ }
+	// 	i_names=0
+
+
+	// 	for(var name in name2vec) {
+	// 		// Model.progress(i_names/n_names, opts)
+	// 		i_names++
+	// 		Model.log('getting '+ n_top +' nearest word vectors to: ' + name)
+	// 		vec=name2vec[name]
+	// 		//console.log('vec!',name,vec)
+	// 		sims = this.M.getNearestWords(vec, (n_top+1)*5)
+	// 		// sims = this.M.getNearestWords(vec, (n_top+1)*2)
+	// 		name_sims=[]
+	// 		unique_words=new Set()
+	// 		sims.forEach(function(sim_d) {
+	// 			new_sim_d={}
+	// 			new_sim_d['id']=id1=name
+	// 			new_sim_d['id2']=id2=sim_d['word']
+	// 			worddat1=deperiodize_str(id1)
+	// 			worddat2=deperiodize_str(id2)
+	// 			new_sim_d['word'] = wordname1 = worddat1[0]
+	// 			new_sim_d['word2'] =wordname2 = worddat2[0]
+	// 			new_sim_d['period'] = period1 = worddat1[1]
+	// 			new_sim_d['period2'] = period2 = worddat2[1]
+	// 			new_sim_d['csim']=sim_d['dist']
+	// 			if((period1!=undefined) & (opts['combine_periods']=='diachronic') & (period2!=period1)) {
+	// 				// skip because let's not compare across periods in that case
+	// 				// console.log('yep!!')
+	// 			} else {
+
+	// 				// console.log('new_sim_d!?',new_sim_d)
+	// 				if((!(id2 in name2vec)) &(!(wordname2 in name2vec)) &(unique_words.size<n_top)) {
+	// 					// if we either want all periods, or periods wanted includes this one
+	// 					if(periods==undefined | (periods.includes(period2))) {
+	// 						// start a new dictionary
+	// 						name_sims.push(new_sim_d)
+
+
+	// 						// console.log('new_sim_d',new_sim_d)
+	// 						if(!(unique_words.has(wordname2))) {
+	// 							unique_words.add(wordname2)
+	// 						}
+						
+	// 					}
+	// 				}
+	// 			}
+	// 		})
+
+	// 		// final average
+	// 		if(opts['combine_periods']=='average') { name_sims=average_periods(name_sims,val_key='csim',word_key='word2',period_key='period2') }
+
+	// 		all_sims.push(...name_sims)
+	// 	}
+	// 	// console.log('all_sims',all_sims.length)
+	// 	return all_sims
+	// }
+
 	Model.get_expanded_wordset = function(opts) {
 		console.log('get_expanded_wordset()',opts)
 
 		var expand_n=opts['expand_n']
 		if(expand_n==undefined) { expand_n = DEFAULT_EXPAND_N }
-    	name2vecs = Model.get_vectors(opts)
-    	log('retrieved vector data for existing words')
-      
-      	vecs = dict_values(name2vecs)
+		name2vecs = Model.get_vectors(opts)
+		log('retrieved vector data for existing words')
+	  
+		vecs = dict_values(name2vecs)
 		sumvec = math.add(...vecs)
-      	words_already=opts['words']
-      	log('computed vector sum of existing words')
+		words_already=opts['words']
+		log('computed vector sum of existing words')
 
-      	opts['name2vec'] = {'sumvec':sumvec}
-      	most_similar_data = Model.get_most_similar_by_vector(opts)
-      	log('found '+most_similar_data.length+' nearest words to sum vector')
+		opts['name2vec'] = {'sumvec':sumvec}
+		most_similar_data = Model.get_most_similar_by_vector(opts)
+		log('found '+most_similar_data.length+' nearest words to sum vector')
 
-        var matches = []
-        most_similar_data.forEach(function(d) {
-           // wordx=d.word2
-          // don't include period anymore: should be an option?
-          wordx=d.word2.split('_')[0]
-          if(!words_already.includes(wordx)) {
-          	
-            
-            words_already.push(wordx)
-            if(matches.length < expand_n) {
-              matches.push(wordx)
-            }
-          }
-        })
-        return matches
+		var matches = []
+		most_similar_data.forEach(function(d) {
+		   // wordx=d.word2
+		  // don't include period anymore: should be an option?
+		  wordx=d.word2.split('_')[0]
+		  if(!words_already.includes(wordx)) {
+			
+			
+			words_already.push(wordx)
+			if(matches.length < expand_n) {
+			  matches.push(wordx)
+			}
+		  }
+		})
+		return matches
 	}
 
 	// Model.progress(1.0,opts)
@@ -381,6 +667,10 @@ function reformat_formula_str(_words) {
 }
 
 function compute_arrays(x, y, operator) {
+	//console.log('computing array with operator',operator)
+	//console.log(x,operator,y)
+
+
 	if(operator=='+') { return math.add(x,y) }
 	if(operator=='-') { return math.subtract(x,y) }
 	if(operator=='*') { return math.multiply(x,y) }
@@ -522,6 +812,8 @@ function periodize(words,periods) {
 
 				word_periods.push(word_period)
 			})
+		} else {
+			word_periods.push(w)
 		}
 	})
 
@@ -590,6 +882,32 @@ function average_periods(word_ld,val_key='csim',word_key='word',period_key='peri
 }
 
 
+async function get_orig_vocab(fn) {
+
+	vocab_promise=new Promise(function(resolve,reject) { 
+
+		var line_num=0
+		var line_words=[]
+		lineReader.eachLine(fn, function(line, last) {
+			// console.log('>>>',line_num,line.slice(0,5),last)
+			if((line_num > 0) & (line!='')) {
+				line_word=line.split(' ')[0]
+				line_words.push(line_word)
+				// console.log(line_word)
+			}
+			line_num++
+
+			if(last) {
+				resolve(line_words)
+			}
+		})
+		
+	})
+	vocab_result = await vocab_promise
+	// console.log('vocab_result!',vocab_result)
+	return vocab_result
+}
+
 
 
 
@@ -598,6 +916,7 @@ exports.W2V_MODELS = W2V_MODELS
 exports.periodize = periodize
 exports.deperiodize_str = deperiodize_str
 exports.get_umap_from_vector_data=get_umap_from_vector_data
+
 
 
 
