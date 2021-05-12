@@ -29,7 +29,7 @@
     "levelup": "^4.3.2",
     "line-reader": "^0.4.0",
     "lowdb": "^1.0.0",
-    "mathjs": "^6.6.1",
+    "mathjs": "^7.5.1",
     "mocha-jsdom": "^2.0.0",
     "mongodb": "^3.5.5",
     "nano": "^8.2.2",
