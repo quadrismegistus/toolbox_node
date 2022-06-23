@@ -23,7 +23,7 @@
     "formula-parser": "^2.0.1",
     "fparser": "^1.4.0",
     "jquery": "^3.4.1",
-    "jsdom": "^16.2.1",
+    "jsdom": "^16.5.0",
     "keyv": "^4.0.0",
     "leveldown": "^5.5.1",
     "levelup": "^4.3.2",
